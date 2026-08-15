@@ -1,6 +1,7 @@
 # Noqte Platform
 .vibe/
 .noqte/
+.whisper-cache/
 
 # OS
 .DS_Store
