@@ -21,6 +21,7 @@ Thumbs.db
 node_modules/
 dist/
 build/
+.next/
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
