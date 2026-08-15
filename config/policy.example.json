@@ -1,0 +1,13 @@
+{
+  "minPrice": {
+    "default": 10,
+    "PISTACHIO-500G": 4.5
+  },
+  "acceptedPaymentTerms": ["advance_payment", "lc", "credit_30"],
+  "productionCapacity": {
+    "PISTACHIO-500G": { "unit": "carton", "maxPerMonth": 5000 }
+  },
+  "sensitiveCountries": ["RU", "SY"],
+  "sensitiveCustomers": [],
+  "requiredApprovals": ["below_min_price", "non_standard_payment_terms", "sensitive_party", "send_message", "send_proforma"]
+}

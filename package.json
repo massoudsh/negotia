@@ -1,0 +1,13 @@
+{
+  "name": "negotia",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Negotia — AI Trade Execution Agent (MVP core logic)",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

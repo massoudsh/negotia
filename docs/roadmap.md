@@ -3,19 +3,21 @@
 > این نقشه راه فاز‌بندی‌شده است. هر آیتم Phase 0 و Phase 1 به‌صورت issue آماده در `scripts/create-github-issues.sh` هم موجود است.
 
 ## Phase 0 — پایه و تصمیم‌های اولیه
-- [ ] انتخاب stack فنی (backend، frontend، دیتابیس، مدل زبانی/LLM provider)
-- [ ] طراحی مدل داده اصلی: Conversation، Message، Contact (خریدار/تأمین‌کننده)، Product، Policy، Proforma
-- [ ] طراحی schema پیکربندی سیاست‌های شرکت (کف قیمت، شرایط پرداخت، ظرفیت، کشورهای حساس، نقاط تأیید انسانی) — ببین `.noqte/wiki/concepts/company-policy-guardrails.md`
-- [ ] بررسی و انتخاب کانال ورودی اول (ایمیل یا واتساپ بیزینس API) برای MVP
+- [x] انتخاب stack فنی (backend، frontend، دیتابیس، مدل زبانی/LLM provider) — `docs/adr/0001-tech-stack.md`
+- [x] طراحی مدل داده اصلی: Conversation، Message، Contact (خریدار/تأمین‌کننده)، Product، Policy، Proforma — `docs/data-model.md`, `src/models/index.js`
+- [x] طراحی schema پیکربندی سیاست‌های شرکت (کف قیمت، شرایط پرداخت، ظرفیت، کشورهای حساس، نقاط تأیید انسانی) — `config/policy.schema.json`
+- [x] بررسی و انتخاب کانال ورودی اول (ایمیل یا واتساپ بیزینس API) برای MVP — `docs/adr/0002-input-channel.md` (ایمیل)
 
 ## Phase 1 — MVP (یک دسته محصول / یک بازار هدف، مسیر صادرات)
-- [ ] ingest مکالمه از کانال انتخاب‌شده
-- [ ] خلاصه‌سازی مکالمه + تشخیص نیاز و سطح جدیت خریدار
-- [ ] پیش‌نویس پاسخ چندزبانه (اول انگلیسی) با لحن متناسب بازار هدف
-- [ ] موتور اعمال سیاست شرکت روی پیشنهادهای قیمت/شرایط (guardrails)
-- [ ] زمان‌بندی و یادآوری follow-up
-- [ ] checkpoint تأیید انسانی قبل از ارسال هر پیام یا پیش‌فاکتور
-- [ ] آماده‌سازی خروجی ساخت‌یافته برای پیش‌فاکتور
+- [x] ingest مکالمه از کانال انتخاب‌شده — `src/ingest/emailIngest.js`
+- [x] خلاصه‌سازی مکالمه + تشخیص نیاز و سطح جدیت خریدار — `src/negotiation/summarize.js`
+- [x] پیش‌نویس پاسخ چندزبانه (اول انگلیسی) با لحن متناسب بازار هدف — `src/negotiation/draftReply.js`
+- [x] موتور اعمال سیاست شرکت روی پیشنهادهای قیمت/شرایط (guardrails) — `src/policy/guardrails.js`
+- [x] زمان‌بندی و یادآوری follow-up — `src/followup/scheduler.js`
+- [x] checkpoint تأیید انسانی قبل از ارسال هر پیام یا پیش‌فاکتور — `src/approval/checkpoint.js`
+- [x] آماده‌سازی خروجی ساخت‌یافته برای پیش‌فاکتور — `src/proforma/prepare.js`
+
+> پیاده‌سازی فعلی MVP منطق دامنه است (قابل تست، بدون DB/UI واقعی)؛ جزئیات لایه‌بندی در `docs/adr/0001-tech-stack.md`. اتصال به دیتابیس واقعی، LLM provider تجاری و ورودی زنده ایمیل در تکرار بعدی انجام می‌شود.
 
 ## Phase 2 — مسیر واردات (مقایسه تأمین‌کننده)
 - [ ] دریافت چند پیشنهاد قیمت از تأمین‌کننده‌های مختلف
