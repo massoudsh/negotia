@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://negotia/schema/policy.json",
+  "title": "Company Policy Guardrails",
+  "description": "پیکربندی سیاست‌های شرکت که Negotia هر پیشنهاد قیمت/شرایط را در برابر آن بررسی می‌کند. مرتبط با GitHub issue #3.",
+  "type": "object",
+  "required": ["minPrice", "acceptedPaymentTerms", "productionCapacity", "requiredApprovals"],
+  "properties": {
+    "minPrice": {
+      "description": "کف قیمت به ازای هر کد محصول. کلید 'default' برای محصولاتی که کف اختصاصی ندارند.",
+      "type": "object",
+      "additionalProperties": { "type": "number", "minimum": 0 }
+    },
+    "acceptedPaymentTerms": {
+      "description": "شرایط پرداخت قابل قبول بدون نیاز به تأیید انسانی.",
+      "type": "array",
+      "items": { "type": "string", "enum": ["advance_payment", "lc", "credit_30", "credit_60", "cod"] }
+    },
+    "productionCapacity": {
+      "description": "ظرفیت واقعی تولید/تأمین به ازای هر کد محصول (واحد در ماه).",
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["unit", "maxPerMonth"],
+        "properties": {
+          "unit": { "type": "string" },
+          "maxPerMonth": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "sensitiveCountries": {
+      "description": "کشورهایی که نیاز به احتیاط/بررسی بیشتر دارند (مثلاً تحریم یا ریسک اعتباری).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "sensitiveCustomers": {
+      "description": "شناسه مشتری/تأمین‌کننده‌هایی با سابقه ریسک که نیاز به بررسی دارند.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "requiredApprovals": {
+      "description": "نقاطی که همیشه باید تأیید انسانی بگیرند، صرف‌نظر از اینکه پیشنهاد داخل چارچوب باشد یا نه.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["below_min_price", "non_standard_payment_terms", "sensitive_party", "send_message", "send_proforma"]
+      }
+    }
+  }
+}

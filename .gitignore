@@ -1,0 +1,40 @@
+# Noqte Platform
+.vibe/
+.noqte/
+.whisper-cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors / IDE
+.vscode/
+.idea/
+*.swp
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs
+*.log
+
+# Misc
+.cache/
+tmp/
