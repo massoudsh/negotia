@@ -27,6 +27,7 @@ export function prepareProforma(conversation, offer, policy) {
 
   proforma.status = 'pending_approval';
   proforma.violations = check.violations;
+  proforma.paymentRecommendation = check.paymentRecommendation;
 
   // طبق سیاست: ارسال هر پیش‌فاکتور نهایی همیشه نیازمند تأیید انسانی است (config/policy.example.json → requiredApprovals).
   const approvalRequest = createApprovalRequest({ type: 'proforma', payload: proforma });

@@ -146,6 +146,9 @@ button { border: 0; }
 .result-box strong { color: var(--foreground); }
 .result-box.ok { border-color: color-mix(in srgb, var(--success) 35%, var(--border)); background: var(--success-soft); }
 .result-box.warn { border-color: color-mix(in srgb, var(--warning) 35%, var(--border)); background: var(--warning-soft); }
+.payment-guidance { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--info-soft); color: var(--info); font-size: 12px; }
+.payment-guidance strong { color: var(--info); }
+.payment-guidance span { color: var(--muted); font-size: 11px; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .tag { padding: 3px 8px; border-radius: 99px; background: var(--danger-soft); color: var(--danger); font-size: 10px; }
 .tool-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }

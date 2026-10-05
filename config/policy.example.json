@@ -9,5 +9,11 @@
   },
   "sensitiveCountries": ["RU", "SY"],
   "sensitiveCustomers": [],
+  "paymentGuidance": {
+    "largeDealThreshold": 50000,
+    "highRiskMethods": ["lc", "advance_payment"],
+    "mediumRiskMethods": ["lc", "advance_payment"],
+    "lowRiskMethods": ["credit_30", "lc", "advance_payment"]
+  },
   "requiredApprovals": ["below_min_price", "non_standard_payment_terms", "sensitive_party", "send_message", "send_proforma"]
 }

@@ -38,6 +38,25 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "paymentGuidance": {
+      "description": "قواعد اختیاری راهنمای انتخاب روش دریافت وجه صادراتی بر اساس ریسک طرف معامله و ارزش قرارداد.",
+      "type": "object",
+      "properties": {
+        "largeDealThreshold": { "type": "number", "minimum": 0 },
+        "highRiskMethods": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["advance_payment", "lc", "credit_30", "credit_60", "cod"] }
+        },
+        "mediumRiskMethods": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["advance_payment", "lc", "credit_30", "credit_60", "cod"] }
+        },
+        "lowRiskMethods": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["advance_payment", "lc", "credit_30", "credit_60", "cod"] }
+        }
+      }
+    },
     "requiredApprovals": {
       "description": "نقاطی که همیشه باید تأیید انسانی بگیرند، صرف‌نظر از اینکه پیشنهاد داخل چارچوب باشد یا نه.",
       "type": "array",
