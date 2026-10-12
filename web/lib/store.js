@@ -8,6 +8,7 @@ import {
 } from '../../src/models/index.js';
 import { summarizeConversation } from '../../src/negotiation/summarize.js';
 import { draftReply } from '../../src/negotiation/draftReply.js';
+import { buildAgentBrief, createNegotiationPlan, getDealReadiness } from '../../src/negotiation/agent-tools.js';
 import { scheduleFollowUp } from '../../src/followup/scheduler.js';
 import { checkOffer } from '../../src/policy/guardrails.js';
 import { prepareProforma } from '../../src/proforma/prepare.js';
@@ -121,6 +122,24 @@ export function followUp(conversationId) {
   const conversation = store.conversations.find((c) => c.id === conversationId);
   if (!conversation) throw new Error('مکالمه پیدا نشد');
   return scheduleFollowUp(conversation);
+}
+
+function getAgentConversation(conversationId) {
+  const conversation = store.conversations.find((c) => c.id === conversationId);
+  if (!conversation) throw new Error('مکالمه پیدا نشد');
+  return withContact(conversation);
+}
+
+export function getAgentBrief(conversationId) {
+  return buildAgentBrief(getAgentConversation(conversationId), policy);
+}
+
+export function getDealReadinessForConversation(conversationId) {
+  return getDealReadiness(getAgentConversation(conversationId), policy);
+}
+
+export function getNegotiationPlan(conversationId) {
+  return createNegotiationPlan(getAgentConversation(conversationId), policy);
 }
 
 export function checkOfferPreview(offer) {

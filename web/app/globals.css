@@ -152,8 +152,21 @@ button { border: 0; }
 .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .tag { padding: 3px 8px; border-radius: 99px; background: var(--danger-soft); color: var(--danger); font-size: 10px; }
 .tool-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tool-grid-agent { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .tool-grid .btn { min-height: 62px; flex-direction: column; gap: 3px; font-weight: 500; }
 .tool-grid .btn::before { content: '✦'; color: var(--brand); font-size: 15px; }
+.agent-result { margin-top: 12px; padding: 13px; border: 1px solid color-mix(in srgb, var(--info) 22%, var(--border)); border-radius: var(--radius-md); background: linear-gradient(145deg, var(--surface-soft), var(--info-soft)); color: var(--muted); font-size: 11px; }
+.agent-result strong { color: var(--foreground); }
+.agent-result p { margin: 7px 0; line-height: 1.7; }
+.agent-result-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.risk-badge, .agent-score-inline { padding: 2px 7px; border-radius: 99px; background: var(--success-soft); color: var(--success); font-size: 10px; }
+.risk-badge.risk-high { background: var(--danger-soft); color: var(--danger); }
+.agent-score { display: flex; align-items: baseline; gap: 7px; margin: 10px 0 5px; }
+.agent-score strong { color: var(--brand); font-size: 22px; }
+.agent-score span { color: var(--subtle); }
+.agent-list { display: flex; flex-direction: column; gap: 5px; margin-top: 9px; }
+.agent-actions { margin: 9px 0 0; padding-right: 19px; }
+.agent-actions li + li { margin-top: 5px; }
 .approval-list { display: flex; flex-direction: column; gap: 12px; }
 .approval-card { padding: 18px; border: 1px solid var(--border-soft); border-radius: var(--radius-lg); background: var(--surface); }
 .approval-card.pending { border-color: color-mix(in srgb, var(--warning) 28%, var(--border-soft)); }
