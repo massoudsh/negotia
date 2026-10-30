@@ -7,6 +7,24 @@ function amount(value, label, positive = false) {
   return value;
 }
 
+export function snapshotLandedCost(input) {
+  const result = calculateLandedCost(input);
+  const currencies = [...new Set([input.currency, input.freight.currency, input.insurance.currency])].filter((code) => !['IRT', 'IRR'].includes(code));
+  return {
+    inputs: {
+      quantity: input.quantity,
+      unitPrice: input.unitPrice,
+      currency: input.currency,
+      freight: { amount: input.freight.amount, currency: input.freight.currency },
+      insurance: { amount: input.insurance.amount, currency: input.insurance.currency },
+      customsCost: input.customsCost,
+      otherCost: input.otherCost,
+      rates: Object.fromEntries(currencies.map((code) => [code, input.rates[code]])),
+    },
+    ...result,
+  };
+}
+
 export function calculateLandedCost({ quantity, unitPrice, currency, freight, insurance, customsCost, otherCost, rates }) {
   amount(quantity, 'مقدار سفارش', true);
   amount(unitPrice, 'قیمت واحد');

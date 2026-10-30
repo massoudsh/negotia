@@ -1,5 +1,6 @@
 import fs from 'node:fs';
-import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { snapshotLandedCost } from '../../src/proforma/landed-cost.js';
 import {
   createContact,
   createProduct,
@@ -18,8 +19,7 @@ import { approve, reject } from '../../src/approval/checkpoint.js';
 // طبق docs/adr/0001-tech-stack.md هنوز DB واقعی وجود ندارد؛
 // منطق دامنه (src/) همان کدی است که در آینده پشت repository واقعی قرار می‌گیرد.
 
-const POLICY_PATH = path.join(process.cwd(), '..', 'config', 'policy.example.json');
-const policy = JSON.parse(fs.readFileSync(POLICY_PATH, 'utf8'));
+const policy = JSON.parse(fs.readFileSync(new URL('../../config/policy.example.json', import.meta.url), 'utf8'));
 
 // از globalThis استفاده می‌کنیم تا در حالت dev (HMR) وضعیت بین reloadها از بین نرود.
 const g = globalThis;
@@ -146,10 +146,25 @@ export function checkOfferPreview(offer) {
   return checkOffer(offer, policy);
 }
 
+export function saveCostEstimate(conversationId, input) {
+  const conversation = store.conversations.find((c) => c.id === conversationId);
+  if (!conversation) throw new Error('مکالمه پیدا نشد');
+  if (conversation.direction !== 'import') throw new Error('برآورد واردات فقط به پرونده وارداتی متصل می‌شود.');
+  const snapshot = snapshotLandedCost(input);
+  const estimate = { ...snapshot, id: randomUUID(), conversationId, productCode: conversation.productCode, createdAt: new Date().toISOString() };
+  conversation.costEstimate = estimate;
+  return estimate;
+}
+
 export function makeProforma(conversationId, offer) {
   const conversation = store.conversations.find((c) => c.id === conversationId);
   if (!conversation) throw new Error('مکالمه پیدا نشد');
-  const { proforma, approvalRequest } = prepareProforma(conversation, offer, policy);
+  let costEstimate;
+  if (offer.costEstimateId) {
+    costEstimate = conversation.costEstimate;
+    if (!costEstimate || costEstimate.id !== offer.costEstimateId) throw new Error('برآورد تغییر کرده یا موجود نیست؛ پرونده را تازه‌سازی کنید.');
+  }
+  const { proforma, approvalRequest } = prepareProforma(conversation, offer, policy, { costEstimate });
   store.approvals.push(approvalRequest);
   return { proforma, approvalRequest };
 }
