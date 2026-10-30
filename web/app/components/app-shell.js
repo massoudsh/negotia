@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const navItems = [
   { href: '/', label: 'مرکز فرمان', icon: 'grid' },
   { href: '/#pipeline', label: 'فرصت‌های تجاری', icon: 'target' },
-  { href: '/#finance', label: 'مالی و بهای تمام‌شده', icon: 'chart' },
-  { href: '/#documents', label: 'اتاق اسناد', icon: 'file' },
+  { href: '/#insights', label: 'اقدام‌های بعدی', icon: 'spark' },
+  { href: '/landed-cost', label: 'بهای تمام‌شده', icon: 'chart' },
   { href: '/approvals', label: 'تأییدهای انسانی', icon: 'check' },
 ];
 
@@ -33,6 +34,29 @@ export { Icon };
 
 export default function AppShell({ children }) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [hash, setHash] = useState('');
+
+  useEffect(() => {
+    function syncLocation() { setHash(window.location.hash); setMobileOpen(false); }
+    syncLocation();
+    window.addEventListener('hashchange', syncLocation);
+    return () => window.removeEventListener('hashchange', syncLocation);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    function closeOnEscape(event) { if (event.key === 'Escape') setMobileOpen(false); }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileOpen]);
+
+  function navigation(label) {
+    return <nav className="main-nav" aria-label={label}>{navItems.map((item) => {
+      const isActive = item.href.includes('#') ? pathname === '/' && item.href === `/${hash}` : item.href === '/' ? pathname === '/' && !hash : pathname.startsWith(item.href);
+      return <Link key={item.href} href={item.href} className={`nav-item ${isActive ? 'active' : ''}`} aria-current={isActive ? 'location' : undefined} onClick={() => { setMobileOpen(false); setHash(item.href.includes('#') ? `#${item.href.split('#')[1]}` : ''); }}><Icon name={item.icon} /><span>{item.label}</span></Link>;
+    })}</nav>;
+  }
 
   return (
     <div className="app-shell">
@@ -47,29 +71,17 @@ export default function AppShell({ children }) {
 
         <div className="workspace-switcher">
           <span className="workspace-dot" />
-          <span>برنامه‌نویسی</span>
+          <span>تجارت خارجی · نسخه نمایشی</span>
           <span className="chevron">⌄</span>
         </div>
 
-        <nav className="main-nav" aria-label="ناوبری اصلی">
-          <div className="nav-label">فضای کاری</div>
-          {navItems.map((item) => {
-            const isActive = item.href === '/' ? pathname === '/' : item.href.startsWith('/#') ? pathname === '/' : pathname.startsWith(item.href);
-            return (
-              <Link key={item.href} href={item.href} className={`nav-item ${isActive ? 'active' : ''}`}>
-                <Icon name={item.icon} />
-                <span>{item.label}</span>
-                {item.href === '/approvals' && <span className="nav-count">۳</span>}
-              </Link>
-            );
-          })}
-        </nav>
+        {navigation('ناوبری اصلی')}
 
         <div className="sidebar-footer">
           <div className="policy-status"><span className="status-dot" /> سیاست شرکت فعال است</div>
           <div className="user-card">
             <div className="avatar">م</div>
-            <div><strong>مدیر تجارت</strong><span>حساب سازمانی</span></div>
+            <div><strong>مدیر تجارت</strong><span>محیط نمایشی</span></div>
             <span className="more">•••</span>
           </div>
         </div>
@@ -78,11 +90,12 @@ export default function AppShell({ children }) {
       <div className="main-shell">
         <header className="mobile-topbar">
           <div className="brand-lockup"><div className="brand-mark">N</div><div className="brand-name">Negotia</div></div>
-          <button className="icon-button" aria-label="باز کردن منو"><Icon name="menu" /></button>
+          <button className="icon-button" aria-label={mobileOpen ? 'بستن منو' : 'باز کردن منو'} aria-expanded={mobileOpen} aria-controls="mobile-navigation" onClick={() => setMobileOpen((open) => !open)}><Icon name="menu" /></button>
         </header>
+        <div id="mobile-navigation" className="mobile-navigation" hidden={!mobileOpen}>{navigation('ناوبری موبایل')}</div>
         <header className="topbar">
-          <div className="breadcrumb"><span>فضای کاری</span><span className="breadcrumb-separator">/</span><strong>{pathname.startsWith('/approvals') ? 'تأییدهای انسانی' : pathname.startsWith('/conversations/') ? 'جزئیات مکالمه' : 'مکالمات'}</strong></div>
-          <div className="topbar-actions"><span className="live-indicator"><span className="status-dot" /> سیستم آنلاین</span><div className="top-avatar">م</div></div>
+          <div className="breadcrumb"><span>فضای کاری</span><span className="breadcrumb-separator">/</span><strong>{pathname.startsWith('/landed-cost') ? 'بهای تمام‌شده' : pathname.startsWith('/approvals') ? 'تأییدهای انسانی' : pathname.startsWith('/conversations/') ? 'جزئیات مکالمه' : 'مرکز فرمان'}</strong></div>
+          <div className="topbar-actions"><span className="live-indicator">نسخه نمایشی · داده‌های در حافظه</span><div className="top-avatar">م</div></div>
         </header>
         {children}
       </div>

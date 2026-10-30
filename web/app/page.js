@@ -3,57 +3,89 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from './components/app-shell';
+import { summarizeDashboard } from '../lib/dashboard';
 
 const STATUS_LABEL = { open: 'باز', awaiting_reply: 'در انتظار پاسخ', serious: 'جدی', closed: 'بسته' };
-const DIRECTION_LABEL = { export: 'صادرات', import: 'واردات' };
-const FEATURE_CARDS = [
-  { id: 'pipeline', icon: 'target', eyebrow: '۰۱ · CRM تجاری', title: 'هر فرصت، یک مسیر روشن', text: 'مکالمه، پیشنهاد، پیگیری و سفارش را در یک پروندهٔ قابل‌اقدام نگه دارید.', tone: 'gold', action: 'ورود به pipeline' },
-  { id: 'finance', icon: 'chart', eyebrow: '۰۲ · بهای تمام‌شده', title: 'قبل از تعهد، سود را ببینید', text: 'هزینهٔ حمل، بیمه، گمرک و تبدیل ارز را کنار قیمت خرید بررسی کنید.', tone: 'blue', action: 'محاسبه سریع' },
-  { id: 'documents', icon: 'file', eyebrow: '۰۳ · اتاق اسناد', title: 'اسناد پراکنده را جمع کنید', text: 'پروفرما، بارنامه، پکینگ‌لیست و مجوزها را به هر پرونده متصل کنید.', tone: 'purple', action: 'مدیریت اسناد' },
-  { id: 'logistics', icon: 'route', eyebrow: '۰۴ · لجستیک و گمرک', title: 'محموله را از مبدأ تا مقصد ببینید', text: 'وضعیت ترخیص، باربری و کالاهای در راه را در یک نمای زمانی دنبال کنید.', tone: 'green', action: 'نمایش محموله‌ها' },
-  { id: 'insights', icon: 'spark', eyebrow: '۰۵ · تصمیم‌یار ایجنت', title: 'گام بعدی همیشه مشخص است', text: 'ایجنت ریسک، آمادگی معامله و اقدام بعدی را قبل از تصمیم شما آماده می‌کند.', tone: 'orange', action: 'باز کردن تصمیم‌یار' },
+const FEATURES = [
+  { icon: 'target', title: 'پرونده‌های تجاری', text: 'مکالمه، پاسخ پیشنهادی و پیگیری هر فرصت.', href: '#pipeline' },
+  { icon: 'chart', title: 'بهای تمام‌شده', text: 'برآورد مستقل چندارزی خرید، حمل، بیمه و هزینه‌های دستی گمرک.', href: '/landed-cost', action: 'محاسبه هزینه' },
+  { icon: 'file', title: 'اتاق اسناد', text: 'بایگانی و مدیریت اسناد هنوز پیاده‌سازی نشده است.' },
+  { icon: 'route', title: 'لجستیک و گمرک', text: 'رهگیری حمل و ترخیص در نقشه راه است.' },
+  { icon: 'spark', title: 'تصمیم‌یار پرونده', text: 'تحلیل قاعده‌محور آمادگی و نقشه مذاکره در هر پرونده.', href: '#pipeline' },
 ];
-
-function LoadingState() {
-  return <div className="card-list"><div className="skeleton" /><div className="skeleton" /></div>;
-}
+const number = (value) => value.toLocaleString('fa-IR');
 
 export default function HomePage() {
-  const [conversations, setConversations] = useState(null);
+  const [records, setRecords] = useState(null);
+  const [error, setError] = useState('');
   const [query, setQuery] = useState('');
 
-  useEffect(() => {
-    fetch('/api/conversations').then((r) => r.json()).then(setConversations);
-  }, []);
+  async function load() {
+    setError('');
+    try {
+      const responses = await Promise.all([fetch('/api/conversations'), fetch('/api/approvals')]);
+      if (responses.some((response) => !response.ok)) throw new Error('load-failed');
+      const [conversations, approvals] = await Promise.all(responses.map((response) => response.json()));
+      setRecords({ conversations, approvals });
+    } catch {
+      setError('دریافت اطلاعات ناموفق بود. دوباره تلاش کنید.');
+    }
+  }
+  useEffect(() => { load(); }, []);
 
+  const stats = useMemo(() => records ? summarizeDashboard(records.conversations, records.approvals) : null, [records]);
   const filtered = useMemo(() => {
-    if (!conversations) return [];
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return conversations;
-    return conversations.filter((c) => [c.contact?.company, c.contact?.name, c.productCode, c.contact?.country].filter(Boolean).join(' ').toLowerCase().includes(normalized));
-  }, [conversations, query]);
-
-  const stats = useMemo(() => ({
-    total: conversations?.length ?? 0,
-    serious: conversations?.filter((c) => c.status === 'serious').length ?? 0,
-    waiting: conversations?.filter((c) => c.status === 'awaiting_reply').length ?? 0,
-    export: conversations?.filter((c) => c.direction === 'export').length ?? 0,
-  }), [conversations]);
+    return records?.conversations.filter((conversation) => [conversation.contact?.company, conversation.contact?.name, conversation.productCode, conversation.contact?.country].filter(Boolean).join(' ').toLowerCase().includes(normalized)) ?? [];
+  }, [records, query]);
 
   return (
     <main className="page command-center">
       <section className="hero-panel">
-        <div className="hero-copy"><div className="hero-status"><span className="status-dot" /> مرکز فرمان تجارت خارجی</div><h1>از گفت‌وگو تا معامله،<br /><em>با تصمیم‌های دقیق‌تر.</em></h1><p>Negotia ریسک و کارهای پراکندهٔ تجارت خارجی را به مسیرهای روشن و قابل‌تأیید تبدیل می‌کند.</p><div className="hero-actions"><Link href="#pipeline" className="btn">شروع از فرصت‌ها <Icon name="arrow" size={15} /></Link><Link href="/approvals" className="btn btn-quiet">صف تأییدها <span className="action-count">۳</span></Link></div></div>
-        <div className="hero-orbit" aria-hidden="true"><div className="orbit-ring ring-one" /><div className="orbit-ring ring-two" /><div className="orbit-core">N<span>AI</span></div><div className="orbit-node node-one">CRM</div><div className="orbit-node node-two">اسناد</div><div className="orbit-node node-three">ریسک</div></div>
+        <div className="hero-copy">
+          <div className="hero-status">مرکز فرمان تجارت خارجی</div>
+          <h1>از گفت‌وگو تا معامله،<br /><em>با تصمیم‌های دقیق‌تر.</em></h1>
+          <p>پرونده‌های تجاری، پیگیری‌ها و درخواست‌های تأیید را در یک نگاه بررسی کنید.</p>
+          <div className="hero-actions"><Link href="#pipeline" className="btn">مشاهده پرونده‌ها <Icon name="arrow" size={15} /></Link><Link href="/approvals" className="btn btn-quiet">صف تأییدها {stats && <span className="action-count">{number(stats.pending)}</span>}</Link></div>
+        </div>
+        <div className="hero-orbit" aria-hidden="true"><div className="orbit-ring ring-one" /><div className="orbit-ring ring-two" /><div className="orbit-core">N<span>AI</span></div><div className="orbit-node node-one">مذاکره</div><div className="orbit-node node-two">پیگیری</div><div className="orbit-node node-three">ریسک</div></div>
       </section>
-
-      <section className="metric-strip"><div><span>ارزش pipeline</span><strong>۲.۴ <small>M USD</small></strong><i className="positive">+۱۸٪ این ماه</i></div><div><span>فرصت‌های فعال</span><strong>{stats.total}</strong><i>در فضای کاری</i></div><div><span>آمادهٔ اقدام</span><strong>{stats.serious}</strong><i>پروندهٔ جدی</i></div><div><span>نیازمند توجه</span><strong>{stats.waiting + 1}</strong><i className="warning-text">پیگیری یا تأیید</i></div></section>
-
-      <section className="section-block" id="pipeline"><div className="section-intro"><div><p className="eyebrow">یک نگاه، پنج اهرم</p><h2>ابزارهای ساخته‌شده برای بازار ایران</h2><p>قابلیت‌های کلیدی نرم‌افزارهای بازرگانی را با هوش تصمیم‌یار و کنترل انسانی ترکیب کرده‌ایم.</p></div><span className="section-index">۰۵ قابلیت کلیدی</span></div><div className="feature-grid">{FEATURE_CARDS.map((feature) => <a className={`feature-card feature-${feature.tone}`} href={`#${feature.id}`} key={feature.id}><div className="feature-top"><span className="feature-icon"><Icon name={feature.icon} size={18} /></span><span className="feature-number">{feature.eyebrow.slice(0, 2)}</span></div><p className="feature-eyebrow">{feature.eyebrow.slice(5)}</p><h3>{feature.title}</h3><p>{feature.text}</p><span className="feature-action">{feature.action} <Icon name="arrow" size={13} /></span></a>)}</div></section>
-
-      <section className="workspace-grid" id="insights"><div className="section-panel"><div className="panel-heading"><div><p className="eyebrow">سیگنال‌های امروز</p><h2>چه چیزی نیاز به اقدام دارد؟</h2></div><span className="live-pill"><span className="status-dot" /> زنده</span></div><div className="signal-list"><div className="signal-item signal-warning"><span className="signal-symbol">!</span><div><strong>یک پرونده برای پیگیری نزدیک است</strong><p>آخرین پاسخ خریدار ۲ روز قبل ثبت شده است.</p></div><Icon name="arrow" size={14} /></div><div className="signal-item signal-info"><span className="signal-symbol">↗</span><div><strong>پیشنهاد پرداخت محافظت‌شده آماده است</strong><p>برای معاملهٔ بزرگ، LC یا پیش‌پرداخت پیشنهاد می‌شود.</p></div><Icon name="arrow" size={14} /></div><div className="signal-item signal-success"><span className="signal-symbol">✓</span><div><strong>اطلاعات یک معامله کامل شد</strong><p>این پرونده می‌تواند وارد مرحلهٔ قیمت‌دهی شود.</p></div><Icon name="arrow" size={14} /></div></div></div><div className="section-panel health-panel" id="finance"><div className="panel-heading"><div><p className="eyebrow">سلامت عملیات</p><h2>کنترل‌های کلیدی</h2></div><Icon name="chart" size={18} /></div><div className="health-ring"><div><strong>۸۶٪</strong><span>آماده برای اقدام</span></div></div><div className="health-legend"><span><i className="legend-dot dot-green" /> ۴ پرونده سالم</span><span><i className="legend-dot dot-yellow" /> ۱ نیازمند بررسی</span><span><i className="legend-dot dot-gray" /> سیاست شرکت فعال</span></div></div></section>
-
-      <section className="section-block conversation-section" id="documents"><div className="section-toolbar"><div><p className="eyebrow">آخرین فعالیت</p><h2 className="section-title">پرونده‌های تجاری</h2><span className="toolbar-meta">مکالمه، سند و اقدام بعدی در یکجا</span></div><div className="toolbar-actions"><div className="search-box"><input aria-label="جست‌وجوی مکالمات" placeholder="جست‌وجوی شرکت یا محصول" value={query} onChange={(e) => setQuery(e.target.value)} /></div><Link href="/approvals" className="btn btn-outline">تأییدها <Icon name="arrow" size={14} /></Link></div></div>{conversations === null && <LoadingState />}{conversations?.length === 0 && <div className="empty">هنوز مکالمه‌ای ثبت نشده است.</div>}{conversations?.length > 0 && filtered.length === 0 && <div className="empty">موردی با این جست‌وجو پیدا نشد.</div>}<ul className="card-list">{filtered.map((c) => { const last = c.messages[c.messages.length - 1]; const company = c.contact?.company ?? c.contact?.name ?? 'بدون نام'; return <li key={c.id}><Link href={`/conversations/${c.id}`} className="card"><div className="card-row"><div className="card-title"><span className="company-mark">{company.slice(0, 1)}</span><div><strong className="company-name">{company}</strong><span className="company-person">{c.contact?.name}</span></div></div><span className={`badge badge-${c.status}`}>{STATUS_LABEL[c.status] ?? c.status}</span></div><div className="card-details"><span className="card-detail">طرف مقابل <strong>{c.contact?.country}</strong></span><span className="card-detail">محصول <strong>{c.productCode}</strong></span><span className="card-detail"><strong>{DIRECTION_LABEL[c.direction] ?? c.direction}</strong></span></div>{last && <p className="preview" dir="ltr">{last.text}</p>}<div className="card-footer"><span>{c.messages.length} پیام در thread</span><span className="arrow-link">باز کردن <Icon name="arrow" size={14} /></span></div></Link></li>; })}</ul></section>
+      <p className="muted small">محیط نمایشی با داده‌های نمونه؛ اطلاعات فعلاً در حافظه نگهداری می‌شوند. آمار از رکوردهای همین محیط محاسبه می‌شود.</p>
+      {error && <div className="result-box warn" role="alert">{error} <button className="btn btn-outline" onClick={load}>تلاش مجدد</button></div>}
+      <section className="metric-strip" aria-label="آمار پرونده‌ها" aria-busy={!records && !error}>
+        {[
+          ['پرونده‌های فعال', stats?.active, 'به‌جز پرونده‌های بسته'],
+          ['مذاکره‌های جدی', stats?.serious, 'وضعیت ثبت‌شده در پرونده'],
+          ['نیازمند پاسخ یا پیگیری', stats?.needsAttention, 'تعداد پرونده‌های فعال'],
+          ['در انتظار تأیید', stats?.pending, 'درخواست‌های تصمیم‌گیری'],
+        ].map(([label, value, note]) => <div key={label}><span>{label}</span><strong>{value === undefined ? '—' : number(value)}</strong><i>{note}</i></div>)}
+      </section>
+      <section className="section-block" id="insights">
+        <div className="section-panel">
+          <div className="panel-heading"><div><p className="eyebrow">براساس رکوردهای فعلی</p><h2>اقدام‌های بعدی</h2></div><button className="btn btn-outline" onClick={load}>به‌روزرسانی</button></div>
+          {!records && !error && <p role="status">در حال دریافت اطلاعات…</p>}
+          {stats && <div className="signal-list">
+            {stats.awaitingResponse.map((conversation) => <Link href={`/conversations/${conversation.id}`} className="signal-item signal-info" key={conversation.id}><Icon name="inbox" /><div><strong>{conversation.contact?.company ?? conversation.contact?.name ?? 'پرونده بدون نام'}</strong><p>آخرین پیام از طرف مقابل است؛ پاسخ را بررسی کنید.</p></div><Icon name="arrow" size={14} /></Link>)}
+            {stats.overdue.map((conversation) => <Link href={`/conversations/${conversation.id}`} className="signal-item signal-warning" key={conversation.id}><Icon name="clock" /><div><strong>{conversation.contact?.company ?? conversation.contact?.name ?? 'پرونده بدون نام'}</strong><p>سه روز از پیام شرکت گذشته است؛ موعد پیگیری رسیده.</p></div><Icon name="arrow" size={14} /></Link>)}
+            {stats.pending > 0 && <Link href="/approvals" className="signal-item"><Icon name="check" /><div><strong>{number(stats.pending)} درخواست تأیید منتظر تصمیم است.</strong></div><Icon name="arrow" size={14} /></Link>}
+            {stats.needsAttention === 0 && stats.pending === 0 && <p className="muted">فعلاً پاسخ، پیگیری یا تأیید معوقی وجود ندارد.</p>}
+          </div>}
+        </div>
+      </section>
+      <section className="section-block">
+        <div className="section-intro"><div><p className="eyebrow">قابلیت‌ها و مسیر توسعه</p><h2>ابزارهای تجارت خارجی</h2></div></div>
+        <div className="feature-grid">{FEATURES.map((feature) => <article className="feature-card" key={feature.title}><div className="feature-top"><span className="feature-icon"><Icon name={feature.icon} /></span><span className="badge">{feature.href ? 'موجود' : 'برنامه‌ریزی‌شده'}</span></div><h3>{feature.title}</h3><p>{feature.text}</p>{feature.href && <Link href={feature.href} className="feature-action">{feature.action ?? 'مشاهده پرونده‌ها'} <Icon name="arrow" size={13} /></Link>}</article>)}</div>
+      </section>
+      <section className="section-block conversation-section" id="pipeline">
+        <div className="section-toolbar"><div><p className="eyebrow">فضای کاری</p><h2 className="section-title">پرونده‌های تجاری</h2></div><div className="search-box"><input aria-label="جست‌وجوی مکالمات" placeholder="جست‌وجوی شرکت یا محصول" value={query} onChange={(event) => setQuery(event.target.value)} /></div></div>
+        {!records && !error && <div className="skeleton" role="status" aria-label="در حال بارگذاری پرونده‌ها" />}
+        {records && filtered.length === 0 && <div className="empty">{records.conversations.length ? 'موردی با این جست‌وجو پیدا نشد.' : 'هنوز مکالمه‌ای ثبت نشده است.'}</div>}
+        <ul className="card-list">{filtered.map((conversation) => {
+          const company = conversation.contact?.company ?? conversation.contact?.name ?? 'بدون نام';
+          const last = conversation.messages.at(-1);
+          return <li key={conversation.id}><Link href={`/conversations/${conversation.id}`} className="card"><div className="card-row"><div className="card-title"><span className="company-mark">{company.slice(0, 1)}</span><div><strong className="company-name">{company}</strong><span className="company-person">{conversation.contact?.name}</span></div></div><span className={`badge badge-${conversation.status}`}>{STATUS_LABEL[conversation.status] ?? conversation.status}</span></div><div className="card-details"><span>کشور <strong>{conversation.contact?.country}</strong></span><span>محصول <strong>{conversation.productCode}</strong></span><span>{conversation.direction === 'export' ? 'صادرات' : 'واردات'}</span></div>{last && <p className="preview" dir="ltr">{last.text}</p>}<div className="card-footer"><span>{number(conversation.messages.length)} پیام</span><span className="arrow-link">باز کردن <Icon name="arrow" size={14} /></span></div></Link></li>;
+        })}</ul>
+      </section>
     </main>
   );
 }
