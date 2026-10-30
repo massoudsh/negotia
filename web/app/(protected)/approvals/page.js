@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useCurrentUser } from '../../components/app-shell';
 
 const TYPE_LABEL = { message: 'پیام تجاری', proforma: 'پیش‌فاکتور' };
 const STATUS_LABEL = { pending: 'در انتظار بررسی', approved: 'تأییدشده', rejected: 'ردشده' };
@@ -11,14 +12,28 @@ export default function ApprovalsPage() {
   const [busyId, setBusyId] = useState(null);
   const [filter, setFilter] = useState('all');
 
-  const load = useCallback(() => fetch('/api/approvals').then((r) => r.json()).then(setApprovals), []);
+  const user = useCurrentUser();
+  const canReview = ['admin', 'reviewer'].includes(user.role);
+  const [error, setError] = useState('');
+  const load = useCallback(async () => {
+    try {
+      const response = await fetch('/api/approvals');
+      if (!response.ok) throw new Error('دریافت درخواست‌ها ناموفق بود.');
+      setApprovals(await response.json());
+    } catch (err) { setError(err.message); }
+  }, []);
   useEffect(() => { load(); }, [load]);
 
   async function decide(id, decision) {
     setBusyId(id);
-    await fetch(`/api/approvals/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision, approverId: 'demo-reviewer' }) });
-    setBusyId(null);
-    load();
+    setError('');
+    try {
+      const response = await fetch(`/api/approvals/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? 'ثبت تصمیم ناموفق بود.');
+      await load();
+    } catch (err) { setError(err.message); }
+    finally { setBusyId(null); }
   }
 
   const visible = useMemo(() => approvals?.filter((a) => filter === 'all' || a.status === filter) ?? [], [approvals, filter]);
@@ -28,6 +43,8 @@ export default function ApprovalsPage() {
 
   return (
     <main className="page">
+      {error && <p className="result-box warn" role="alert">{error} <button className="btn btn-outline" onClick={load}>تلاش مجدد</button></p>}
+      {!canReview && <p className="muted">حساب شما فقط دسترسی مشاهده دارد؛ تصمیم‌گیری با بازبین یا مدیر است.</p>}
       <div className="page-heading">
         <div><p className="eyebrow">کنترل انسانی</p><h1>تأییدهای انسانی</h1><p className="lead">هر پیام و پیش‌فاکتور قبل از ارسال از این checkpoint عبور می‌کند؛ تصمیم نهایی همیشه با تیم شماست.</p></div>
         <Link href="/" className="back-link">بازگشت به مکالمات</Link>
@@ -52,7 +69,7 @@ export default function ApprovalsPage() {
             {a.payload.costEstimate && <div className="result-box"><strong>برآورد بهای تمام‌شده (نرخ دستی)</strong><p>جمع: {a.payload.costEstimate.total.toLocaleString('fa-IR')} تومان · هر واحد: {a.payload.costEstimate.perUnit.toLocaleString('fa-IR')} تومان</p><p className="muted small">مقدار: {a.payload.costEstimate.inputs.quantity.toLocaleString('fa-IR')} · خرید هر واحد: {a.payload.costEstimate.inputs.unitPrice} {a.payload.costEstimate.inputs.currency} · ثبت برآورد: {new Date(a.payload.costEstimate.createdAt).toLocaleString('fa-IR')}</p><p className="muted small">این نسخه پیوست مستقل از تغییرات بعدی برآورد پرونده است؛ مبلغ پیش‌فاکتور را جایگزین نمی‌کند.</p></div>}
             <div className="approval-content"><pre>{JSON.stringify(a.payload, null, 2)}</pre></div>
             <div className="approval-footer">
-              {a.status === 'pending' ? <div className="btn-row"><button className="btn btn-success" disabled={busyId === a.id} onClick={() => decide(a.id, 'approved')}>تأیید و ادامه</button><button className="btn btn-danger" disabled={busyId === a.id} onClick={() => decide(a.id, 'rejected')}>رد درخواست</button></div> : <div className="approval-meta">تصمیم توسط {a.approvedBy} در {new Date(a.decidedAt).toLocaleString('fa-IR')}{a.reason && ` — ${a.reason}`}</div>}
+              {a.status === 'pending' ? <div className="btn-row"><button className="btn btn-success" disabled={!canReview || busyId !== null} onClick={() => decide(a.id, 'approved')}>تأیید و ادامه</button><button className="btn btn-danger" disabled={!canReview || busyId !== null} onClick={() => decide(a.id, 'rejected')}>رد درخواست</button></div> : <div className="approval-meta">تصمیم توسط {a.approvedBy} در {new Date(a.decidedAt).toLocaleString('fa-IR')}{a.reason && ` — ${a.reason}`}</div>}
               <span className="approval-meta">ایجاد شده در {new Date(a.createdAt).toLocaleDateString('fa-IR')}</span>
             </div>
           </article>

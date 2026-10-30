@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { checkOfferPreview } from '../../../../lib/store.js';
 
-// پیش‌نمایش زنده‌ی نتیجه guardrails قبل از ثبت نهایی پیش‌فاکتور (بدون ساخت approval request).
-export async function POST(req) {
+import { withSession } from '../../../../lib/auth.js';
+
+export const POST = withSession(async (req) => {
   const body = await req.json();
   const offer = {
     productCode: body.productCode,
@@ -14,4 +15,4 @@ export async function POST(req) {
     customerId: body.customerId || undefined,
   };
   return NextResponse.json(checkOfferPreview(offer));
-}
+});

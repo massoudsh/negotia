@@ -2,7 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
+
+const UserContext = createContext(null);
+export const useCurrentUser = () => useContext(UserContext);
+const ROLE_LABEL = { admin: 'مدیر', reviewer: 'بازبین', viewer: 'فقط مشاهده' };
 
 const navItems = [
   { href: '/', label: 'مرکز فرمان', icon: 'grid' },
@@ -32,7 +36,16 @@ function Icon({ name, size = 18 }) {
 
 export { Icon };
 
-export default function AppShell({ children }) {
+export default function AppShell({ children, user }) {
+  const [logoutError, setLogoutError] = useState('');
+  async function signOut() {
+    setLogoutError('');
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!response.ok) throw new Error();
+      window.location.assign('/login');
+    } catch { setLogoutError('خروج ناموفق بود؛ دوباره تلاش کنید.'); }
+  }
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hash, setHash] = useState('');
@@ -71,7 +84,7 @@ export default function AppShell({ children }) {
 
         <div className="workspace-switcher">
           <span className="workspace-dot" />
-          <span>تجارت خارجی · نسخه نمایشی</span>
+          <span>فضای کاری تجارت خارجی</span>
           <span className="chevron">⌄</span>
         </div>
 
@@ -80,9 +93,8 @@ export default function AppShell({ children }) {
         <div className="sidebar-footer">
           <div className="policy-status"><span className="status-dot" /> سیاست شرکت فعال است</div>
           <div className="user-card">
-            <div className="avatar">م</div>
-            <div><strong>مدیر تجارت</strong><span>محیط نمایشی</span></div>
-            <span className="more">•••</span>
+            <div className="avatar">{user.name[0]}</div>
+            <div><strong>{user.name}</strong><span>{ROLE_LABEL[user.role]}</span></div>
           </div>
         </div>
       </aside>
@@ -95,9 +107,10 @@ export default function AppShell({ children }) {
         <div id="mobile-navigation" className="mobile-navigation" hidden={!mobileOpen}>{navigation('ناوبری موبایل')}</div>
         <header className="topbar">
           <div className="breadcrumb"><span>فضای کاری</span><span className="breadcrumb-separator">/</span><strong>{pathname.startsWith('/landed-cost') ? 'بهای تمام‌شده' : pathname.startsWith('/approvals') ? 'تأییدهای انسانی' : pathname.startsWith('/conversations/') ? 'جزئیات مکالمه' : 'مرکز فرمان'}</strong></div>
-          <div className="topbar-actions"><span className="live-indicator">نسخه نمایشی · داده‌های در حافظه</span><div className="top-avatar">م</div></div>
+          <div className="topbar-actions"><span className="live-indicator">{ROLE_LABEL[user.role]} · ذخیره پایدار</span><button className="btn btn-outline" onClick={signOut}>خروج</button></div>
         </header>
-        {children}
+        {logoutError && <p className="result-box warn" role="alert">{logoutError}</p>}
+        <UserContext.Provider value={user}>{children}</UserContext.Provider>
       </div>
     </div>
   );

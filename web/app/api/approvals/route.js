@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { listApprovals } from '../../../lib/store.js';
+import { withSession } from '../../../lib/auth.js';
 
-export async function GET() {
-  return NextResponse.json(listApprovals());
-}
+export const GET = withSession(async () => NextResponse.json(listApprovals()));

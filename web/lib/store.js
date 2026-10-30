@@ -15,18 +15,11 @@ import { checkOffer } from '../../src/policy/guardrails.js';
 import { prepareProforma } from '../../src/proforma/prepare.js';
 import { approve, reject } from '../../src/approval/checkpoint.js';
 
-// این لایه، store در-حافظه‌ی نسخه‌ی دمو/MVP رابط کاربری است.
-// طبق docs/adr/0001-tech-stack.md هنوز DB واقعی وجود ندارد؛
-// منطق دامنه (src/) همان کدی است که در آینده پشت repository واقعی قرار می‌گیرد.
+import { initializeWorkspace, readWorkspace, updateWorkspace } from '../../src/storage/database.js';
+import { reviewer } from '../../src/auth/accounts.js';
 
 const policy = JSON.parse(fs.readFileSync(new URL('../../config/policy.example.json', import.meta.url), 'utf8'));
-
-// از globalThis استفاده می‌کنیم تا در حالت dev (HMR) وضعیت بین reloadها از بین نرود.
-const g = globalThis;
-if (!g.__negotiaStore) {
-  g.__negotiaStore = seed();
-}
-const store = g.__negotiaStore;
+initializeWorkspace(() => process.env.NEGOTIA_SEED_DEMO === '1' ? seed() : { contacts: [], products: [], conversations: [], approvals: [] });
 
 function seed() {
   const buyer = createContact({
@@ -85,49 +78,53 @@ function pushMessage(conversation, { sender, text, channel = 'email', at }) {
 }
 
 export function listConversations() {
-  return store.conversations.map(withContact);
+  const store = readWorkspace();
+  return store.conversations.map((conversation) => withContact(conversation, store));
 }
 
 export function getConversation(id) {
+  const store = readWorkspace();
   const conversation = store.conversations.find((c) => c.id === id);
-  return conversation ? withContact(conversation) : null;
+  return conversation ? withContact(conversation, store) : null;
 }
 
-function withContact(conversation) {
+function withContact(conversation, store) {
   return { ...conversation, contact: store.contacts.find((c) => c.id === conversation.contactId) ?? null };
 }
 
 export function addMessage(conversationId, { sender, text, channel = 'email' }) {
-  const conversation = store.conversations.find((c) => c.id === conversationId);
-  if (!conversation) throw new Error('مکالمه پیدا نشد');
-  const message = pushMessage(conversation, { sender, text, channel });
-  if (conversation.status === 'closed') conversation.status = 'open';
-  return message;
+  return updateWorkspace((store) => {
+    const conversation = store.conversations.find((c) => c.id === conversationId);
+    if (!conversation) throw new Error('مکالمه پیدا نشد');
+    const message = pushMessage(conversation, { sender, text, channel });
+    if (conversation.status === 'closed') conversation.status = 'open';
+    return message;
+  });
 }
 
 export function summarize(conversationId) {
-  const conversation = store.conversations.find((c) => c.id === conversationId);
+  const conversation = getConversation(conversationId);
   if (!conversation) throw new Error('مکالمه پیدا نشد');
   return summarizeConversation(conversation);
 }
 
 export function draft(conversationId) {
-  const conversation = store.conversations.find((c) => c.id === conversationId);
+  const conversation = getConversation(conversationId);
   if (!conversation) throw new Error('مکالمه پیدا نشد');
   const summary = summarizeConversation(conversation);
   return { summary, draft: draftReply(conversation, summary) };
 }
 
 export function followUp(conversationId) {
-  const conversation = store.conversations.find((c) => c.id === conversationId);
+  const conversation = getConversation(conversationId);
   if (!conversation) throw new Error('مکالمه پیدا نشد');
   return scheduleFollowUp(conversation);
 }
 
 function getAgentConversation(conversationId) {
-  const conversation = store.conversations.find((c) => c.id === conversationId);
+  const conversation = getConversation(conversationId);
   if (!conversation) throw new Error('مکالمه پیدا نشد');
-  return withContact(conversation);
+  return conversation;
 }
 
 export function getAgentBrief(conversationId) {
@@ -147,40 +144,47 @@ export function checkOfferPreview(offer) {
 }
 
 export function saveCostEstimate(conversationId, input) {
-  const conversation = store.conversations.find((c) => c.id === conversationId);
-  if (!conversation) throw new Error('مکالمه پیدا نشد');
-  if (conversation.direction !== 'import') throw new Error('برآورد واردات فقط به پرونده وارداتی متصل می‌شود.');
-  const snapshot = snapshotLandedCost(input);
-  const estimate = { ...snapshot, id: randomUUID(), conversationId, productCode: conversation.productCode, createdAt: new Date().toISOString() };
-  conversation.costEstimate = estimate;
-  return estimate;
+  return updateWorkspace((store) => {
+    const conversation = store.conversations.find((c) => c.id === conversationId);
+    if (!conversation) throw new Error('مکالمه پیدا نشد');
+    if (conversation.direction !== 'import') throw new Error('برآورد واردات فقط به پرونده وارداتی متصل می‌شود.');
+    const estimate = { ...snapshotLandedCost(input), id: randomUUID(), conversationId, productCode: conversation.productCode, createdAt: new Date().toISOString() };
+    conversation.costEstimate = estimate;
+    return estimate;
+  });
 }
 
 export function makeProforma(conversationId, offer) {
-  const conversation = store.conversations.find((c) => c.id === conversationId);
-  if (!conversation) throw new Error('مکالمه پیدا نشد');
-  let costEstimate;
-  if (offer.costEstimateId) {
-    costEstimate = conversation.costEstimate;
-    if (!costEstimate || costEstimate.id !== offer.costEstimateId) throw new Error('برآورد تغییر کرده یا موجود نیست؛ پرونده را تازه‌سازی کنید.');
-  }
-  const { proforma, approvalRequest } = prepareProforma(conversation, offer, policy, { costEstimate });
-  store.approvals.push(approvalRequest);
-  return { proforma, approvalRequest };
+  return updateWorkspace((store) => {
+    const conversation = store.conversations.find((c) => c.id === conversationId);
+    if (!conversation) throw new Error('مکالمه پیدا نشد');
+    let costEstimate;
+    if (offer.costEstimateId) {
+      costEstimate = conversation.costEstimate;
+      if (!costEstimate || costEstimate.id !== offer.costEstimateId) throw new Error('برآورد تغییر کرده یا موجود نیست؛ پرونده را تازه‌سازی کنید.');
+    }
+    const result = prepareProforma(conversation, offer, policy, { costEstimate });
+    store.approvals.push(result.approvalRequest);
+    return result;
+  });
 }
 
 export function listApprovals() {
-  return [...store.approvals].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  return readWorkspace().approvals.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
-export function decideApproval(id, decision, approverId = 'demo-reviewer', reason) {
-  const idx = store.approvals.findIndex((a) => a.id === id);
-  if (idx === -1) throw new Error('درخواست تأیید پیدا نشد');
-  const current = store.approvals[idx];
-  const updated =
-    decision === 'approved' ? approve(current, approverId) : reject(current, approverId, reason ?? 'رد شده از داشبورد');
-  store.approvals[idx] = updated;
-  return updated;
+export function decideApproval(id, decision, approverId, reason) {
+  return updateWorkspace((store) => {
+    reviewer(approverId);
+    if (!['approved', 'rejected'].includes(decision)) throw new Error('تصمیم معتبر نیست.');
+    const idx = store.approvals.findIndex((a) => a.id === id);
+    if (idx === -1) throw new Error('درخواست تأیید پیدا نشد');
+    const current = store.approvals[idx];
+    if (current.status !== 'pending') throw new Error('این درخواست قبلاً بررسی شده است.');
+    const updated = decision === 'approved' ? approve(current, approverId) : reject(current, approverId, reason ?? 'رد شده از داشبورد');
+    store.approvals[idx] = updated;
+    return updated;
+  });
 }
 
 export function getPolicy() {

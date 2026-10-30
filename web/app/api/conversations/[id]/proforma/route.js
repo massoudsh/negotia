@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getConversation, makeProforma } from '../../../../../lib/store.js';
 
-export async function POST(req, { params }) {
+import { withSession } from '../../../../../lib/auth.js';
+
+export const POST = withSession(async (req, { params }) => {
   const { id } = await params;
   if (!getConversation(id)) return NextResponse.json({ error: 'مکالمه پیدا نشد' }, { status: 404 });
   try {
@@ -21,4 +23,4 @@ export async function POST(req, { params }) {
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
-}
+});

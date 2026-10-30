@@ -5,9 +5,13 @@
   "description": "Negotia — AI Trade Execution Agent (MVP core logic)",
   "type": "module",
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test test/",
+    "user:create": "node scripts/create-user.js"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "libsql": "^0.5.29"
   }
 }

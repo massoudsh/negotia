@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { listConversations, getConversation, saveCostEstimate, makeProforma, listApprovals } from '../web/lib/store.js';
+process.env.NEGOTIA_DATABASE_PATH = ':memory:';
+process.env.NEGOTIA_SEED_DEMO = '1';
+const { listConversations, getConversation, saveCostEstimate, makeProforma, listApprovals } = await import('../web/lib/store.js');
 import { snapshotLandedCost } from '../src/proforma/landed-cost.js';
 import { guardSend } from '../src/approval/checkpoint.js';
 

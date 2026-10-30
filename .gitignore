@@ -35,6 +35,11 @@ venv/
 # Logs
 *.log
 
+# Local application database
+/data/
+/outputs/npm-cache/
+/outputs/test-data/
+
 # Misc
 .cache/
 tmp/

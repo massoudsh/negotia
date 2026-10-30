@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Icon } from './components/app-shell';
-import { summarizeDashboard } from '../lib/dashboard';
+import { Icon } from '../components/app-shell';
+import { summarizeDashboard } from '../../lib/dashboard';
 
 const STATUS_LABEL = { open: 'باز', awaiting_reply: 'در انتظار پاسخ', serious: 'جدی', closed: 'بسته' };
 const FEATURES = [
@@ -50,7 +50,7 @@ export default function HomePage() {
         </div>
         <div className="hero-orbit" aria-hidden="true"><div className="orbit-ring ring-one" /><div className="orbit-ring ring-two" /><div className="orbit-core">N<span>AI</span></div><div className="orbit-node node-one">مذاکره</div><div className="orbit-node node-two">پیگیری</div><div className="orbit-node node-three">ریسک</div></div>
       </section>
-      <p className="muted small">محیط نمایشی با داده‌های نمونه؛ اطلاعات فعلاً در حافظه نگهداری می‌شوند. آمار از رکوردهای همین محیط محاسبه می‌شود.</p>
+      <p className="muted small">اطلاعات در پایگاه داده محلی ذخیره می‌شوند. آمار از رکوردهای همین فضای کاری محاسبه می‌شود.</p>
       {error && <div className="result-box warn" role="alert">{error} <button className="btn btn-outline" onClick={load}>تلاش مجدد</button></div>}
       <section className="metric-strip" aria-label="آمار پرونده‌ها" aria-busy={!records && !error}>
         {[

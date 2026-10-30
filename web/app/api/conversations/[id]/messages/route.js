@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 import { addMessage } from '../../../../../lib/store.js';
+import { withSession } from '../../../../../lib/auth.js';
 
-export async function POST(req, { params }) {
+export const POST = withSession(async (req, { params }) => {
   const { id } = await params;
-  const body = await req.json();
-  if (!body.text) {
-    return NextResponse.json({ error: 'متن پیام الزامی است' }, { status: 400 });
-  }
   try {
-    const message = addMessage(id, { sender: body.sender ?? 'company', text: body.text });
-    return NextResponse.json(message);
+    const body = await req.json();
+    if (typeof body.text !== 'string' || !body.text.trim() || body.text.length > 20000 || !['company', 'contact'].includes(body.sender ?? 'company')) {
+      return NextResponse.json({ error: 'متن یا فرستنده پیام معتبر نیست.' }, { status: 400 });
+    }
+    return NextResponse.json(addMessage(id, { sender: body.sender ?? 'company', text: body.text }));
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 404 });
+    return NextResponse.json({ error: err instanceof SyntaxError ? 'ورودی معتبر نیست.' : err.message }, { status: 400 });
   }
-}
+});
