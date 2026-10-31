@@ -13,7 +13,7 @@ import { buildAgentBrief, createNegotiationPlan, getDealReadiness } from '../../
 import { scheduleFollowUp } from '../../src/followup/scheduler.js';
 import { checkOffer } from '../../src/policy/guardrails.js';
 import { prepareProforma } from '../../src/proforma/prepare.js';
-import { approve, reject } from '../../src/approval/checkpoint.js';
+import { approve, reject, createApprovalRequest } from '../../src/approval/checkpoint.js';
 
 import { initializeWorkspace, readWorkspace, updateWorkspace } from '../../src/storage/database.js';
 import { reviewer } from '../../src/auth/accounts.js';
@@ -92,11 +92,12 @@ function withContact(conversation, store) {
   return { ...conversation, contact: store.contacts.find((c) => c.id === conversation.contactId) ?? null };
 }
 
-export function addMessage(conversationId, { sender, text, channel = 'email' }) {
+export function addMessage(conversationId, { sender, text, channel = 'email' }, actorId) {
   return updateWorkspace((store) => {
     const conversation = store.conversations.find((c) => c.id === conversationId);
     if (!conversation) throw new Error('مکالمه پیدا نشد');
     const message = pushMessage(conversation, { sender, text, channel });
+    if (actorId) { const actor = reviewer(actorId); message.recordedBy = actor.id; message.recordedByName = actor.name; }
     if (conversation.status === 'closed') conversation.status = 'open';
     return message;
   });
@@ -143,18 +144,19 @@ export function checkOfferPreview(offer) {
   return checkOffer(offer, policy);
 }
 
-export function saveCostEstimate(conversationId, input) {
+export function saveCostEstimate(conversationId, input, actorId) {
   return updateWorkspace((store) => {
     const conversation = store.conversations.find((c) => c.id === conversationId);
     if (!conversation) throw new Error('مکالمه پیدا نشد');
     if (conversation.direction !== 'import') throw new Error('برآورد واردات فقط به پرونده وارداتی متصل می‌شود.');
     const estimate = { ...snapshotLandedCost(input), id: randomUUID(), conversationId, productCode: conversation.productCode, createdAt: new Date().toISOString() };
     conversation.costEstimate = estimate;
+    if (actorId) { const actor = reviewer(actorId); (conversation.activity ??= []).push({ id: randomUUID(), at: estimate.createdAt, actor: actor.name, actorId, type: 'cost-estimate', text: 'نسخه جدید برآورد بهای تمام‌شده ذخیره شد.', referenceId: estimate.id }); }
     return estimate;
   });
 }
 
-export function makeProforma(conversationId, offer) {
+export function makeProforma(conversationId, offer, actorId) {
   return updateWorkspace((store) => {
     const conversation = store.conversations.find((c) => c.id === conversationId);
     if (!conversation) throw new Error('مکالمه پیدا نشد');
@@ -165,6 +167,7 @@ export function makeProforma(conversationId, offer) {
     }
     const result = prepareProforma(conversation, offer, policy, { costEstimate });
     store.approvals.push(result.approvalRequest);
+    if (actorId) { const actor = reviewer(actorId); (conversation.activity ??= []).push({ id: randomUUID(), at: result.approvalRequest.createdAt, actor: actor.name, actorId, type: 'proforma', text: 'پیش‌فاکتور برای بررسی ثبت شد.', referenceId: result.approvalRequest.id }); }
     return result;
   });
 }
@@ -183,10 +186,43 @@ export function decideApproval(id, decision, approverId, reason) {
     if (current.status !== 'pending') throw new Error('این درخواست قبلاً بررسی شده است.');
     const updated = decision === 'approved' ? approve(current, approverId) : reject(current, approverId, reason ?? 'رد شده از داشبورد');
     store.approvals[idx] = updated;
+    const conversation = store.conversations.find(item => item.id === current.payload.conversationId);
+    if (conversation) (conversation.activity ??= []).push({ id: randomUUID(), at: updated.decidedAt, actor: reviewer(approverId).name, actorId: approverId, type: 'approval', text: decision === 'approved' ? 'درخواست تأیید شد؛ ارسال خارجی انجام نشده است.' : 'درخواست رد شد.', referenceId: id });
     return updated;
   });
 }
 
 export function getPolicy() {
   return policy;
+}
+
+export function requestMessageApproval(conversationId, { text, originalText }, actorId) {
+  const actor = reviewer(actorId);
+  if (typeof text !== 'string' || !text.trim() || text.length > 20000 || typeof originalText !== 'string' || originalText.length > 20000) throw new Error('متن پیش‌نویس معتبر نیست.');
+  return updateWorkspace((store) => {
+    const conversation = store.conversations.find(item => item.id === conversationId);
+    if (!conversation) throw new Error('مکالمه پیدا نشد');
+    const contact = store.contacts.find(item => item.id === conversation.contactId);
+    const request = createApprovalRequest({ type: 'message', payload: { conversationId, text: text.trim(), originalText, recipient: contact?.email ?? '', requestedBy: actor.id, origin: 'assistant-draft-reviewed', sourceMessageIds: conversation.messages.map(message => message.id) } });
+    store.approvals.push(request);
+    (conversation.activity ??= []).push({ id: randomUUID(), at: request.createdAt, actor: actor.name, actorId: actor.id, type: 'draft-review', text: 'پیش‌نویس برای تأیید ثبت شد؛ هیچ پیامی ارسال نشده است.', referenceId: request.id });
+    return request;
+  });
+}
+
+export function addNote(conversationId, text, actorId) {
+  const actor = reviewer(actorId);
+  if (typeof text !== 'string' || !text.trim() || text.length > 10000) throw new Error('یادداشت باید بین ۱ تا ۱۰۰۰۰ نویسه باشد.');
+  return updateWorkspace((store) => {
+    const conversation = store.conversations.find(item => item.id === conversationId);
+    if (!conversation) throw new Error('مکالمه پیدا نشد');
+    const note = { id: randomUUID(), at: new Date().toISOString(), actor: actor.name, actorId, type: 'note', text: text.trim() };
+    (conversation.activity ??= []).push(note);
+    return note;
+  });
+}
+
+export function getLibrary() {
+  const store = readWorkspace();
+  return { contacts: store.contacts, products: store.products, terms: policy.acceptedPaymentTerms, source: 'config/policy.example.json' };
 }
