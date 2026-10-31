@@ -11,5 +11,6 @@ export default async function ProtectedLayout({ children }) {
   const cookieStore = await cookies();
   const user = sessionUser(cookieStore.get(SESSION_COOKIE)?.value);
   if (!user) redirect('/login');
-  return <AppShell user={user}>{children}</AppShell>;
+  const environment = { production: 'محیط عملیاتی', staging: 'محیط آزمایشی', sandbox: 'محیط تمرین' }[process.env.NEGOTIA_ENVIRONMENT] ?? 'محیط تعیین نشده';
+  return <AppShell user={user} environment={environment}>{children}</AppShell>;
 }

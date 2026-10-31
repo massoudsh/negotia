@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '../components/app-shell';
 import { summarizeDashboard } from '../../lib/dashboard';
+import { api } from '../../lib/api';
+import { DataTable, DealStatusBadge, Field } from '../components/glass';
 
 const STATUS_LABEL = { open: 'باز', awaiting_reply: 'در انتظار پاسخ', serious: 'جدی', closed: 'بسته' };
 const FEATURES = [
   { icon: 'target', title: 'پرونده‌های تجاری', text: 'مکالمه، پاسخ پیشنهادی و پیگیری هر فرصت.', href: '#pipeline' },
   { icon: 'chart', title: 'بهای تمام‌شده', text: 'برآورد مستقل چندارزی خرید، حمل، بیمه و هزینه‌های دستی گمرک.', href: '/landed-cost', action: 'محاسبه هزینه' },
-  { icon: 'file', title: 'اتاق اسناد', text: 'بایگانی و مدیریت اسناد هنوز پیاده‌سازی نشده است.' },
+  { icon: 'file', title: 'اسناد ثبت‌شده', text: 'نسخه‌های پیش‌فاکتور و برآورد پیوست؛ بدون آپلود فایل.', href: '/documents', action: 'مشاهده نسخه‌ها' },
   { icon: 'route', title: 'لجستیک و گمرک', text: 'رهگیری حمل و ترخیص در نقشه راه است.' },
   { icon: 'spark', title: 'تصمیم‌یار پرونده', text: 'تحلیل قاعده‌محور آمادگی و نقشه مذاکره در هر پرونده.', href: '#pipeline' },
 ];
@@ -19,25 +21,38 @@ export default function HomePage() {
   const [records, setRecords] = useState(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [stage, setStage] = useState('all');
+  const [market, setMarket] = useState('');
+  const [after, setAfter] = useState('');
+  const [before, setBefore] = useState('');
+  const [queue, setQueue] = useState('all');
 
   async function load() {
     setError('');
     try {
-      const responses = await Promise.all([fetch('/api/conversations'), fetch('/api/approvals')]);
-      if (responses.some((response) => !response.ok)) throw new Error('load-failed');
-      const [conversations, approvals] = await Promise.all(responses.map((response) => response.json()));
+      const [conversations, approvals] = await Promise.all([api('/api/conversations'), api('/api/approvals')]);
       setRecords({ conversations, approvals });
-    } catch {
-      setError('دریافت اطلاعات ناموفق بود. دوباره تلاش کنید.');
+    } catch (err) {
+      setError(err.message);
     }
   }
   useEffect(() => { load(); }, []);
 
-  const stats = useMemo(() => records ? summarizeDashboard(records.conversations, records.approvals) : null, [records]);
-  const filtered = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return records?.conversations.filter((conversation) => [conversation.contact?.company, conversation.contact?.name, conversation.productCode, conversation.contact?.country].filter(Boolean).join(' ').toLowerCase().includes(normalized)) ?? [];
-  }, [records, query]);
+  const scoped = useMemo(() => records?.conversations.filter(conversation => {
+    const text = [conversation.contact?.company, conversation.contact?.name, conversation.productCode, ...conversation.messages.map(message => message.text)].join(' ').toLowerCase();
+    const day = (conversation.lastMessageAt ?? '').slice(0, 10);
+    return text.includes(query.trim().toLowerCase()) && (stage === 'all' || conversation.status === stage) && (!market || conversation.contact?.country === market) && (!after || day >= after) && (!before || day <= before);
+  }) ?? [], [records, query, stage, market, after, before]);
+  const stats = useMemo(() => records ? summarizeDashboard(scoped, records.approvals.filter(approval => scoped.some(conversation => conversation.id === approval.payload.conversationId))) : null, [scoped, records]);
+  const filtered = useMemo(() => scoped.filter(conversation => queue === 'all' || queue === 'active' && conversation.status !== 'closed' || queue === 'serious' && conversation.status === 'serious' || queue === 'action' && [...(stats?.awaitingResponse ?? []), ...(stats?.overdue ?? [])].some(item => item.id === conversation.id)), [scoped, queue, stats]);
+  const columns = useMemo(() => [
+    { key: 'company', label: 'طرف تجاری', value: row => row.contact?.company ?? row.contact?.name ?? '', render: row => <Link href={`/conversations/${row.id}`}><bdi>{row.contact?.company ?? row.contact?.name ?? 'بدون نام'}</bdi></Link> },
+    { key: 'stage', label: 'مرحله', value: row => row.status, render: row => <DealStatusBadge status={row.status} /> },
+    { key: 'product', label: 'محصول', value: row => row.productCode },
+    { key: 'market', label: 'بازار', value: row => row.contact?.country },
+    { key: 'count', label: 'پیام‌ها', value: row => row.messages.length, render: row => number(row.messages.length) },
+    { key: 'date', label: 'آخرین پیام', value: row => row.lastMessageAt ?? '', render: row => row.lastMessageAt ? new Date(row.lastMessageAt).toLocaleDateString('fa-IR') : '—' },
+  ], []);
 
   return (
     <main className="page command-center">
@@ -54,20 +69,21 @@ export default function HomePage() {
       {error && <div className="result-box warn" role="alert">{error} <button className="btn btn-outline" onClick={load}>تلاش مجدد</button></div>}
       <section className="metric-strip" aria-label="آمار پرونده‌ها" aria-busy={!records && !error}>
         {[
-          ['پرونده‌های فعال', stats?.active, 'به‌جز پرونده‌های بسته'],
-          ['مذاکره‌های جدی', stats?.serious, 'وضعیت ثبت‌شده در پرونده'],
-          ['نیازمند پاسخ یا پیگیری', stats?.needsAttention, 'تعداد پرونده‌های فعال'],
-          ['در انتظار تأیید', stats?.pending, 'درخواست‌های تصمیم‌گیری'],
-        ].map(([label, value, note]) => <div key={label}><span>{label}</span><strong>{value === undefined ? '—' : number(value)}</strong><i>{note}</i></div>)}
+          ['پرونده‌های فعال', stats?.active, 'به‌جز پرونده‌های بسته', 'active'],
+          ['مذاکره‌های جدی', stats?.serious, 'وضعیت ثبت‌شده در پرونده', 'serious'],
+          ['نیازمند پاسخ یا پیگیری', stats?.needsAttention, 'تعداد پرونده‌های فعال', 'action'],
+          ['در انتظار تأیید', stats?.pending, 'درخواست‌های تصمیم‌گیری', 'approvals'],
+        ].map(([label, value, note, key]) => <div key={label}><Link className="metric-link" href={key === 'approvals' ? '/approvals?status=pending' : '#pipeline'} onClick={() => { if (key !== 'approvals') setQueue(key); }}><span>{label}</span><strong>{value === undefined ? '—' : number(value)}</strong><i>{note}</i></Link></div>)}
       </section>
       <section className="section-block" id="insights">
         <div className="section-panel">
           <div className="panel-heading"><div><p className="eyebrow">براساس رکوردهای فعلی</p><h2>اقدام‌های بعدی</h2></div><button className="btn btn-outline" onClick={load}>به‌روزرسانی</button></div>
           {!records && !error && <p role="status">در حال دریافت اطلاعات…</p>}
           {stats && <div className="signal-list">
-            {stats.awaitingResponse.map((conversation) => <Link href={`/conversations/${conversation.id}`} className="signal-item signal-info" key={conversation.id}><Icon name="inbox" /><div><strong>{conversation.contact?.company ?? conversation.contact?.name ?? 'پرونده بدون نام'}</strong><p>آخرین پیام از طرف مقابل است؛ پاسخ را بررسی کنید.</p></div><Icon name="arrow" size={14} /></Link>)}
-            {stats.overdue.map((conversation) => <Link href={`/conversations/${conversation.id}`} className="signal-item signal-warning" key={conversation.id}><Icon name="clock" /><div><strong>{conversation.contact?.company ?? conversation.contact?.name ?? 'پرونده بدون نام'}</strong><p>سه روز از پیام شرکت گذشته است؛ موعد پیگیری رسیده.</p></div><Icon name="arrow" size={14} /></Link>)}
+            {stats.awaitingResponse.slice(0, 10).map((conversation) => <Link href={`/conversations/${conversation.id}`} className="signal-item signal-info" key={conversation.id}><Icon name="inbox" /><div><strong>{conversation.contact?.company ?? conversation.contact?.name ?? 'پرونده بدون نام'}</strong><p>آخرین پیام از طرف مقابل است؛ پاسخ را بررسی کنید.</p></div><Icon name="arrow" size={14} /></Link>)}
+            {stats.overdue.slice(0, 10).map((conversation) => <Link href={`/conversations/${conversation.id}`} className="signal-item signal-warning" key={conversation.id}><Icon name="clock" /><div><strong>{conversation.contact?.company ?? conversation.contact?.name ?? 'پرونده بدون نام'}</strong><p>سه روز از پیام شرکت گذشته است؛ موعد پیگیری رسیده.</p></div><Icon name="arrow" size={14} /></Link>)}
             {stats.pending > 0 && <Link href="/approvals" className="signal-item"><Icon name="check" /><div><strong>{number(stats.pending)} درخواست تأیید منتظر تصمیم است.</strong></div><Icon name="arrow" size={14} /></Link>}
+            {stats.needsAttention > 10 && <a href="#pipeline" onClick={() => setQueue('action')}>مشاهده تمام موارد در صف اقدام</a>}
             {stats.needsAttention === 0 && stats.pending === 0 && <p className="muted">فعلاً پاسخ، پیگیری یا تأیید معوقی وجود ندارد.</p>}
           </div>}
         </div>
@@ -80,11 +96,9 @@ export default function HomePage() {
         <div className="section-toolbar"><div><p className="eyebrow">فضای کاری</p><h2 className="section-title">پرونده‌های تجاری</h2></div><div className="search-box"><input aria-label="جست‌وجوی مکالمات" placeholder="جست‌وجوی شرکت یا محصول" value={query} onChange={(event) => setQuery(event.target.value)} /></div></div>
         {!records && !error && <div className="skeleton" role="status" aria-label="در حال بارگذاری پرونده‌ها" />}
         {records && filtered.length === 0 && <div className="empty">{records.conversations.length ? 'موردی با این جست‌وجو پیدا نشد.' : 'هنوز مکالمه‌ای ثبت نشده است.'}</div>}
-        <ul className="card-list">{filtered.map((conversation) => {
-          const company = conversation.contact?.company ?? conversation.contact?.name ?? 'بدون نام';
-          const last = conversation.messages.at(-1);
-          return <li key={conversation.id}><Link href={`/conversations/${conversation.id}`} className="card"><div className="card-row"><div className="card-title"><span className="company-mark">{company.slice(0, 1)}</span><div><strong className="company-name">{company}</strong><span className="company-person">{conversation.contact?.name}</span></div></div><span className={`badge badge-${conversation.status}`}>{STATUS_LABEL[conversation.status] ?? conversation.status}</span></div><div className="card-details"><span>کشور <strong>{conversation.contact?.country}</strong></span><span>محصول <strong>{conversation.productCode}</strong></span><span>{conversation.direction === 'export' ? 'صادرات' : 'واردات'}</span></div>{last && <p className="preview" dir="ltr">{last.text}</p>}<div className="card-footer"><span>{number(conversation.messages.length)} پیام</span><span className="arrow-link">باز کردن <Icon name="arrow" size={14} /></span></div></Link></li>;
-        })}</ul>
+        <div className="filters"><Field as="select" label="مرحله" value={stage} onChange={event => setStage(event.target.value)}><option value="all">همه</option>{Object.entries(STATUS_LABEL).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Field><Field as="select" label="بازار" value={market} onChange={event => setMarket(event.target.value)}><option value="">همه</option>{[...new Set(records?.conversations.map(item => item.contact?.country).filter(Boolean))].map(value => <option key={value}>{value}</option>)}</Field><Field label="آخرین پیام از (میلادی)" type="date" value={after} onChange={event => setAfter(event.target.value)} /><Field label="تا (میلادی)" type="date" value={before} onChange={event => setBefore(event.target.value)} /><Field as="select" label="صف کاری" value={queue} onChange={event => setQueue(event.target.value)}><option value="all">همه</option><option value="active">فعال</option><option value="serious">جدی</option><option value="action">نیازمند اقدام</option></Field><button className="btn btn-outline" onClick={() => { setQuery(''); setStage('all'); setMarket(''); setAfter(''); setBefore(''); setQueue('all'); }}>پاک کردن فیلترها</button></div>
+        {records && <DataTable rows={filtered} columns={columns} caption="پرونده‌های تجاری · مرتب‌سازی با عنوان ستون" />}
+        {records && <details className="section"><summary>توزیع مراحل در نتایج فیلترشده</summary><div className="pipeline-bars">{Object.entries(STATUS_LABEL).map(([key, label]) => { const count = scoped.filter(row => row.status === key).length; return <label key={key}>{label}: {number(count)}<meter min={0} max={Math.max(scoped.length, 1)} value={count} aria-label={`${label}: ${count}`} /></label>; })}</div><p className="muted">مالک، اولویت، ارزش معامله و موعدهای قراردادی در مدل فعلی ثبت نمی‌شوند؛ برای آن‌ها آمار حدسی نمایش داده نمی‌شود.</p></details>}
       </section>
     </main>
   );

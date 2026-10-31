@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/",
+    "check": "node scripts/check-ui.js && npm test",
     "user:create": "node scripts/create-user.js"
   },
   "engines": {

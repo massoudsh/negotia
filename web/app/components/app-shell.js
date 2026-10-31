@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 
 const UserContext = createContext(null);
 export const useCurrentUser = () => useContext(UserContext);
@@ -13,6 +13,8 @@ const navItems = [
   { href: '/#pipeline', label: 'فرصت‌های تجاری', icon: 'target' },
   { href: '/#insights', label: 'اقدام‌های بعدی', icon: 'spark' },
   { href: '/landed-cost', label: 'بهای تمام‌شده', icon: 'chart' },
+  { href: '/library', label: 'طرف‌ها و محصولات', icon: 'grid' },
+  { href: '/documents', label: 'اسناد و شواهد', icon: 'file' },
   { href: '/approvals', label: 'تأییدهای انسانی', icon: 'check' },
 ];
 
@@ -36,7 +38,23 @@ function Icon({ name, size = 18 }) {
 
 export { Icon };
 
-export default function AppShell({ children, user }) {
+export default function AppShell({ children, user, environment }) {
+  const [theme, setTheme] = useState('system');
+  const [offline, setOffline] = useState(false);
+  useEffect(() => {
+    try { setTheme(localStorage.getItem('negotia-theme') || 'system'); } catch {}
+    const sync = () => setOffline(!navigator.onLine);
+    sync();
+    window.addEventListener('online', sync); window.addEventListener('offline', sync);
+    return () => { window.removeEventListener('online', sync); window.removeEventListener('offline', sync); };
+  }, []);
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => { document.documentElement.dataset.theme = theme === 'system' ? media.matches ? 'dark' : 'light' : theme; };
+    apply(); media.addEventListener('change', apply);
+    return () => media.removeEventListener('change', apply);
+  }, [theme]);
+  function changeTheme(event) { setTheme(event.target.value); try { localStorage.setItem('negotia-theme', event.target.value); } catch {} }
   const [logoutError, setLogoutError] = useState('');
   async function signOut() {
     setLogoutError('');
@@ -47,6 +65,7 @@ export default function AppShell({ children, user }) {
     } catch { setLogoutError('خروج ناموفق بود؛ دوباره تلاش کنید.'); }
   }
   const pathname = usePathname();
+  const menuButton = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hash, setHash] = useState('');
 
@@ -59,7 +78,7 @@ export default function AppShell({ children, user }) {
 
   useEffect(() => {
     if (!mobileOpen) return;
-    function closeOnEscape(event) { if (event.key === 'Escape') setMobileOpen(false); }
+    function closeOnEscape(event) { if (event.key === 'Escape') { setMobileOpen(false); menuButton.current?.focus(); } }
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [mobileOpen]);
@@ -73,6 +92,7 @@ export default function AppShell({ children, user }) {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">رفتن به محتوای اصلی</a>
       <aside className="sidebar">
         <div className="brand-lockup">
           <div className="brand-mark">N</div>
@@ -102,15 +122,16 @@ export default function AppShell({ children, user }) {
       <div className="main-shell">
         <header className="mobile-topbar">
           <div className="brand-lockup"><div className="brand-mark">N</div><div className="brand-name">Negotia</div></div>
-          <button className="icon-button" aria-label={mobileOpen ? 'بستن منو' : 'باز کردن منو'} aria-expanded={mobileOpen} aria-controls="mobile-navigation" onClick={() => setMobileOpen((open) => !open)}><Icon name="menu" /></button>
+          <button ref={menuButton} className="icon-button" aria-label={mobileOpen ? 'بستن منو' : 'باز کردن منو'} aria-expanded={mobileOpen} aria-controls="mobile-navigation" onClick={() => setMobileOpen((open) => !open)}><Icon name="menu" /></button>
         </header>
         <div id="mobile-navigation" className="mobile-navigation" hidden={!mobileOpen}>{navigation('ناوبری موبایل')}</div>
         <header className="topbar">
           <div className="breadcrumb"><span>فضای کاری</span><span className="breadcrumb-separator">/</span><strong>{pathname.startsWith('/landed-cost') ? 'بهای تمام‌شده' : pathname.startsWith('/approvals') ? 'تأییدهای انسانی' : pathname.startsWith('/conversations/') ? 'جزئیات مکالمه' : 'مرکز فرمان'}</strong></div>
-          <div className="topbar-actions"><span className="live-indicator">{ROLE_LABEL[user.role]} · ذخیره پایدار</span><button className="btn btn-outline" onClick={signOut}>خروج</button></div>
+          <div className="topbar-actions"><span className="environment">{environment}</span><label>پوسته <select value={theme} onChange={changeTheme}><option value="system">سیستم</option><option value="light">روشن</option><option value="dark">تیره</option></select></label><Link className="btn btn-outline" href="/#pipeline">جست‌وجوی پرونده</Link><Link className="btn btn-outline" href="/approvals">صف تأییدها</Link><button className="btn btn-outline" onClick={signOut}>خروج</button></div>
         </header>
         {logoutError && <p className="result-box warn" role="alert">{logoutError}</p>}
-        <UserContext.Provider value={user}>{children}</UserContext.Provider>
+        {offline && <p className="offline-banner" role="status">ارتباط قطع است؛ اطلاعات ممکن است قدیمی باشند. پس از اتصال دوباره تلاش کنید.</p>}
+        <div id="main-content" tabIndex={-1}><UserContext.Provider value={user}>{children}</UserContext.Provider></div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import './globals.css';
+import './theme.css';
 
 export const metadata = {
   title: 'Negotia — اجرای هوشمند تجارت خارجی',
