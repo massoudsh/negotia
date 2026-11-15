@@ -1,17 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { scratchDirectory, scratchFile } from './helpers/scratch.js';
 
 const run = promisify(execFile);
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
-const scratch = () => {
-  mkdirSync(fileURLToPath(new URL('../outputs/test-data/', import.meta.url)), { recursive: true });
-  return fileURLToPath(new URL(`../outputs/test-data/${randomUUID()}-demo.db`, import.meta.url));
-};
+const directory = scratchDirectory();
+const scratch = () => scratchFile(directory, `${randomUUID()}-demo.db`);
 
 const inspect = `
   const store = await import('./web/lib/store.js');
@@ -54,7 +52,6 @@ test('demo mode seeds a varied, internally consistent sample workspace', async (
   assert.ok(result.estimate > 0, 'the import deal should carry a landed-cost estimate');
   assert.deepEqual(result.account, { email: 'demo@negotia.local', role: 'admin' });
   assert.equal(result.secondAccount, null, 'the demo account must be created only once');
-  for (const suffix of ['', '-wal', '-shm']) rmSync(`${databasePath}${suffix}`, { force: true });
 });
 
 test('demo mode stays off by default and the legacy seed flag still works', async () => {
@@ -74,5 +71,4 @@ test('demo mode never overwrites an existing workspace', async () => {
   assert.equal(first.conversations, 5);
   const second = await inspectWith({ NEGOTIA_DATABASE_PATH: databasePath, NEGOTIA_DEMO_MODE: '1' });
   assert.equal(second.conversations, 5, 'reopening must not duplicate the seed');
-  for (const suffix of ['', '-wal', '-shm']) rmSync(`${databasePath}${suffix}`, { force: true });
 });

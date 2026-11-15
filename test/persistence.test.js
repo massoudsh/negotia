@@ -1,12 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { scratchDirectory, scratchFile } from './helpers/scratch.js';
 
-const databasePath = fileURLToPath(new URL(`../outputs/test-data/${randomUUID()}.db`, import.meta.url));
-mkdirSync(fileURLToPath(new URL('../outputs/test-data/', import.meta.url)), { recursive: true });
+const databasePath = scratchFile(scratchDirectory(), `${randomUUID()}.db`);
 const env = { ...process.env, NEGOTIA_DATABASE_PATH: databasePath, NEGOTIA_SEED_DEMO: '1' };
 const run = (source) => execFileSync(process.execPath, ['--input-type=module', '-e', source], { cwd: fileURLToPath(new URL('..', import.meta.url)), env, encoding: 'utf8' });
 

@@ -1,18 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { scratchDirectory, scratchFile } from './helpers/scratch.js';
 
 const run = promisify(execFile);
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
-const scratch = name => {
-  const path = fileURLToPath(new URL(`../outputs/test-data/${randomUUID()}-${name}`, import.meta.url));
-  mkdirSync(fileURLToPath(new URL('../outputs/test-data/', import.meta.url)), { recursive: true });
-  return path;
-};
+const directory = scratchDirectory();
+const scratch = name => scratchFile(directory, `${randomUUID()}-${name}`);
 
 const loadStore = `
   const store = await import('./web/lib/store.js');
@@ -28,7 +26,6 @@ test('the build phase never touches a configured on-disk database', async () => 
   const { stdout } = await run(process.execPath, ['--input-type=module', '-e', loadStore], { cwd: projectRoot, env });
   assert.equal(stdout, '0', 'the build phase must start from an empty in-memory workspace');
   assert.equal(existsSync(databasePath), false, 'build must not create or open the configured database file');
-  rmSync(databasePath, { force: true });
 });
 
 test('parallel workers can open and initialize the same database without SQLITE_BUSY', async () => {
@@ -42,6 +39,4 @@ test('parallel workers can open and initialize the same database without SQLITE_
   assert.deepEqual(failures, []);
   assert.ok(runs.every(result => result.value.stdout === '5'), 'every worker must see the seeded workspace');
   assert.equal(existsSync(databasePath), true);
-  for (const suffix of ['-wal', '-shm']) rmSync(`${databasePath}${suffix}`, { force: true });
-  rmSync(databasePath, { force: true });
 });

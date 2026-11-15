@@ -37,8 +37,9 @@ venv/
 
 # Local application database
 /data/
-/outputs/npm-cache/
-/outputs/test-data/
+
+# Generated artifacts: never commit build/test/export outputs
+/outputs/
 
 # Misc
 .cache/
