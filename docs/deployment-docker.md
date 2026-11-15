@@ -49,8 +49,28 @@ Copy `.env.example` to `.env` and adjust it; Compose reads that file automatical
 | `NEGOTIA_DATABASE_PATH` | `/app/data/negotia.db` | SQLite file location. Keep it inside the mounted volume. |
 | `NEGOTIA_ENVIRONMENT` | `staging` (compose) | Environment badge: `production`, `staging`, `sandbox`. Anything else shows "not configured". |
 | `NEGOTIA_PORT` | `3000` | Host port published by Compose. |
-| `NEGOTIA_SEED_DEMO` | unset | Set to `1` only on a fresh, empty database to insert the two demo conversations. It never overwrites existing data. |
+| `NEGOTIA_DEMO_MODE` | `1` (compose) | Fills a brand-new, empty database with sample trade data and provisions the shared demo login. Set to `0` for real use. Never overwrites an existing workspace. |
+| `NEGOTIA_SEED_DEMO` | unset | Legacy alias for `NEGOTIA_DEMO_MODE=1`; kept for older deployments. |
 | `PORT` | `3000` | Port the server listens on inside the container. |
+
+## Demo mode
+
+Compose enables demo mode by default so the app is usable immediately. On the first sign-in attempt
+it creates a shared account and shows the credentials on the login page:
+
+- Email: `demo@negotia.local`
+- Password: `demo-mode-password`
+- Role: `admin`
+
+The sample workspace contains five conversations (export and import, including one closed deal and
+one awaiting follow-up), five counterparties, four products, a saved landed-cost estimate, and three
+approval requests in pending, approved, and rejected states. A banner marks the workspace as demo
+data, and the login page shows the credentials only while demo mode is on.
+
+**Before real use:** set `NEGOTIA_DEMO_MODE=0`, start with an empty database, and create a real
+account with `docker compose run --rm account ...`. Demo mode never overwrites existing data, but a
+database that was first created in demo mode keeps its sample records — start from a fresh volume
+for production.
 
 ## Persistence and ownership
 

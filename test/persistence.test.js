@@ -26,8 +26,9 @@ test('messages and approval decisions survive independent process restarts', () 
     const store = await import('./web/lib/store.js');
     const { database } = await import('./src/storage/database.js');
     const conversation = store.listConversations().find(c => c.direction === 'import');
-    process.stdout.write(JSON.stringify({ text: conversation.messages.at(-1).text, status: store.listApprovals()[0].status, count: store.listConversations().length }));
+    const approvals = store.listApprovals();
+    process.stdout.write(JSON.stringify({ text: conversation.messages.at(-1).text, status: approvals.find(a => a.payload.conversationId === conversation.id && a.status === 'approved')?.status, count: store.listConversations().length }));
     database.close();
   `);
-  assert.deepEqual(JSON.parse(output), { text: 'Persisted message', status: 'approved', count: 2 });
+  assert.deepEqual(JSON.parse(output), { text: 'Persisted message', status: 'approved', count: 5 });
 });

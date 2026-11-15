@@ -38,7 +38,7 @@ function Icon({ name, size = 18 }) {
 
 export { Icon };
 
-export default function AppShell({ children, user, environment }) {
+export default function AppShell({ children, user, environment, demo = false }) {
   const [theme, setTheme] = useState('system');
   const [offline, setOffline] = useState(false);
   useEffect(() => {
@@ -130,6 +130,7 @@ export default function AppShell({ children, user, environment }) {
           <div className="topbar-actions"><span className="environment">{environment}</span><label>پوسته <select value={theme} onChange={changeTheme}><option value="system">سیستم</option><option value="light">روشن</option><option value="dark">تیره</option></select></label><Link className="btn btn-outline" href="/#pipeline">جست‌وجوی پرونده</Link><Link className="btn btn-outline" href="/approvals">صف تأییدها</Link><button className="btn btn-outline" onClick={signOut}>خروج</button></div>
         </header>
         {logoutError && <p className="result-box warn" role="alert">{logoutError}</p>}
+        {demo && <p className="demo-banner" role="status">حالت نمایشی فعال است · داده‌های این فضای کاری نمونه‌اند و برای استفاده عملیاتی نیستند.</p>}
         {offline && <p className="offline-banner" role="status">ارتباط قطع است؛ اطلاعات ممکن است قدیمی باشند. پس از اتصال دوباره تلاش کنید.</p>}
         <div id="main-content" tabIndex={-1}><UserContext.Provider value={user}>{children}</UserContext.Provider></div>
       </div>

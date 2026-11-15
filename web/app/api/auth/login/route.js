@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server.js';
 import { login, SESSION_SECONDS } from '../../../../../src/auth/accounts.js';
 import { sameOrigin, SESSION_COOKIE } from '../../../../lib/auth.js';
+import { ensureDemoAccount } from '../../../../lib/store.js';
 
 export const runtime = 'nodejs';
 
@@ -8,6 +9,8 @@ export async function POST(request) {
   if (!sameOrigin(request)) return NextResponse.json({ error: 'مبدأ درخواست معتبر نیست.' }, { status: 403 });
   try {
     const body = await request.json();
+    // In demo mode the shared demo account is provisioned on first sign-in attempt.
+    await ensureDemoAccount();
     const { token, user } = await login(body?.email, body?.password);
     const response = NextResponse.json({ user });
     response.headers.set('Cache-Control', 'no-store');

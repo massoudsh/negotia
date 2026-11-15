@@ -9,6 +9,7 @@ services:
       NODE_ENV: production
       NEGOTIA_ENVIRONMENT: ${NEGOTIA_ENVIRONMENT:-staging}
       NEGOTIA_DATABASE_PATH: /app/data/negotia.db
+      NEGOTIA_DEMO_MODE: ${NEGOTIA_DEMO_MODE:-1}
     ports:
       - "${NEGOTIA_PORT:-3000}:3000"
     volumes:

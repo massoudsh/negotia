@@ -40,7 +40,7 @@ test('parallel workers can open and initialize the same database without SQLITE_
   );
   const failures = runs.filter(result => result.status === 'rejected').map(result => result.reason.stderr ?? result.reason.message);
   assert.deepEqual(failures, []);
-  assert.ok(runs.every(result => result.value.stdout === '2'), 'every worker must see the seeded workspace');
+  assert.ok(runs.every(result => result.value.stdout === '5'), 'every worker must see the seeded workspace');
   assert.equal(existsSync(databasePath), true);
   for (const suffix of ['-wal', '-shm']) rmSync(`${databasePath}${suffix}`, { force: true });
   rmSync(databasePath, { force: true });

@@ -80,11 +80,12 @@ test('offer validation rejects missing, coerced and overflowing values without c
 
 test('consequential record writes retain authenticated actors and linked event context', () => {
   const importing = store.listConversations().find(item => item.direction === 'import');
+  const before = store.getConversation(importing.id).activity?.length ?? 0;
   const message = store.addMessage(importing.id, { sender: 'contact', text: 'Historical record' }, reviewer.id);
   assert.equal(message.recordedBy, reviewer.id);
   store.saveCostEstimate(importing.id, { quantity: 10, unitPrice: 12, currency: 'IRT', freight: { amount: 0, currency: 'IRT' }, insurance: { amount: 0, currency: 'IRT' }, customsCost: 0, otherCost: 0 }, reviewer.id);
   const { approvalRequest } = store.makeProforma(importing.id, { productCode: importing.productCode, quantity: 10, unitPrice: 12, paymentTerms: 'lc', deliveryDays: 30, destination: 'Tehran' }, reviewer.id);
-  const events = store.getConversation(importing.id).activity;
+  const events = store.getConversation(importing.id).activity.slice(before);
   assert.deepEqual(events.map(event => event.type), ['cost-estimate', 'proforma']);
   assert.ok(events.every(event => event.actorId === reviewer.id));
   assert.equal(events.at(-1).referenceId, approvalRequest.id);
