@@ -1,0 +1,33 @@
+services:
+  app:
+    build:
+      context: .
+    image: negotia:local
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      NEGOTIA_ENVIRONMENT: ${NEGOTIA_ENVIRONMENT:-staging}
+      NEGOTIA_DATABASE_PATH: /app/data/negotia.db
+    ports:
+      - "${NEGOTIA_PORT:-3000}:3000"
+    volumes:
+      - negotia-data:/app/data
+
+  # Creates the first account against the same volume:
+  #   docker compose run --rm account admin@example.com "Trade Admin" admin
+  account:
+    profiles: ["tools"]
+    image: negotia:local
+    build:
+      context: .
+    entrypoint: ["node", "scripts/create-user.js"]
+    stdin_open: true
+    tty: true
+    environment:
+      NEGOTIA_DATABASE_PATH: /app/data/negotia.db
+    volumes:
+      - negotia-data:/app/data
+
+volumes:
+  negotia-data:

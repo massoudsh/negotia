@@ -12,11 +12,21 @@ Negotia لایه هوشمندی است که کنار تیم صادرات و وا
 
 Negotia مکالمه با طرف خارجی را می‌فهمد، نیاز و سطح جدیت را تشخیص می‌دهد، به زبان و لحن بازار هدف (انگلیسی، عربی، ترکی و ...) پیام حرفه‌ای پیشنهاد می‌دهد، پیگیری‌ها را زمان‌بندی می‌کند و در هر مرحله قدم بعدی را به تیم می‌گوید — همیشه در چارچوب سیاست‌های داخلی شرکت (کف قیمت، شرایط پرداخت قابل قبول، ظرفیت واقعی، مواردی که نیاز به تأیید انسانی دارند).
 
-جزئیات کامل چشم‌انداز، بازار هدف و مدل کسب‌وکار در [`docs/product-vision.md`](docs/product-vision.md).
+جزئیات کامل چشم‌انداز، بازار هدف و مدل کسب‌وکار در [`docs/product-vision.md`](docs/product-vision.md). مستندات استقرار کانتینری در [`docs/deployment-docker.md`](docs/deployment-docker.md).
 
 ## وضعیت پروژه
 
 منطق دامنه‌ی MVP (`src/`) پیاده‌سازی و تست شده است. رابط کاربری وب هم در `web/` (Next.js) اضافه شده — راهنمای اجرا: [`web/README.md`](web/README.md).
+
+## اجرا با Docker
+
+```bash
+docker compose build
+docker compose up -d
+docker compose run --rm account admin@example.com "Trade Admin" admin
+```
+
+داده‌ها در volume نام‌دار `negotia-data` روی `/app/data` نگهداری می‌شوند، کانتینر با کاربر غیر root اجرا می‌شود و health check وضعیت سرویس را گزارش می‌دهد. جزئیات متغیرهای محیطی، مالکیت volume در bind mount، پشتیبان‌گیری، HTTPS و محدودیت تک‌نمونه‌ای در [`docs/deployment-docker.md`](docs/deployment-docker.md).
 
 ## لایسنس
 
