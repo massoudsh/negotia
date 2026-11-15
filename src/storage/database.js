@@ -1,9 +1,13 @@
 import Database from 'libsql';
 import { mkdirSync, chmodSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const filename = process.env.NEGOTIA_DATABASE_PATH ?? fileURLToPath(new URL('../../data/negotia.db', import.meta.url));
+// The default path is assembled with path.join rather than new URL(..., import.meta.url):
+// webpack statically resolves URL literals and fails the build when the database file
+// does not exist in the build context.
+const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const filename = process.env.NEGOTIA_DATABASE_PATH ?? join(projectRoot, 'data', 'negotia.db');
 if (filename !== ':memory:') mkdirSync(dirname(filename), { recursive: true, mode: 0o700 });
 export const database = new Database(filename);
 if (filename !== ':memory:') chmodSync(filename, 0o600);

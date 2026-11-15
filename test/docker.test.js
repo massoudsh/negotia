@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const root = new URL('../', import.meta.url);
 const read = path => readFileSync(new URL(path, root), 'utf8');
@@ -104,4 +106,22 @@ test('deployment notes document the volume, account creation and TLS boundary', 
   for (const topic of ['docker compose run --rm account', 'NEGOTIA_DATABASE_PATH', 'uid 1000', 'Secure', 'Origin']) {
     assert.ok(notes.includes(topic), `deployment notes must cover ${topic}`);
   }
+});
+
+// webpack statically resolves new URL('<literal>', import.meta.url) and fails the
+// production build when the target is not in the build context (e.g. data/negotia.db).
+test('server modules avoid webpack-resolved URL literals for runtime files', () => {
+  const offenders = [];
+  const walk = directory => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith('.js')) {
+        const source = readFileSync(path, 'utf8');
+        if (/new URL\(\s*['"][^'"]+['"]\s*,\s*import\.meta\.url\s*\)/.test(source)) offenders.push(path);
+      }
+    }
+  };
+  for (const directory of ['src', 'web/lib', 'web/app']) walk(fileURLToPath(new URL(directory, root)));
+  assert.deepEqual(offenders, [], 'use path.join(dirname(fileURLToPath(import.meta.url)), ...) instead');
 });

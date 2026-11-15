@@ -1,4 +1,6 @@
 import fs from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { snapshotLandedCost } from '../../src/proforma/landed-cost.js';
 import {
@@ -18,7 +20,10 @@ import { approve, reject, createApprovalRequest } from '../../src/approval/check
 import { initializeWorkspace, readWorkspace, updateWorkspace } from '../../src/storage/database.js';
 import { reviewer } from '../../src/auth/accounts.js';
 
-const policy = JSON.parse(fs.readFileSync(new URL('../../config/policy.example.json', import.meta.url), 'utf8'));
+// Read the policy with a plain path: webpack rewrites new URL(..., import.meta.url)
+// literals into build assets, which breaks the server bundle.
+const policyPath = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'config', 'policy.example.json');
+const policy = JSON.parse(fs.readFileSync(policyPath, 'utf8'));
 initializeWorkspace(() => process.env.NEGOTIA_SEED_DEMO === '1' ? seed() : { contacts: [], products: [], conversations: [], approvals: [] });
 
 function seed() {
