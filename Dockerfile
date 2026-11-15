@@ -17,8 +17,9 @@ COPY web/package.json web/package-lock.json ./web/
 RUN npm ci --prefix web --ignore-scripts --no-audit --no-fund
 
 FROM base AS builder
-ENV NODE_ENV=production \
-    NEGOTIA_DATABASE_PATH=/tmp/build.db
+# `next build` collects page data in parallel workers; the storage module detects the
+# build phase and uses a private in-memory database, so no real data is touched here.
+ENV NODE_ENV=production
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/web/node_modules ./web/node_modules
 COPY . .
