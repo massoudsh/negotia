@@ -36,9 +36,13 @@ docker compose run --rm account admin@example.com "Trade Admin" admin
 ```
 
 The password prompt needs an interactive terminal. The account command writes into the same
-`negotia-data` volume the app reads, and refuses to run when stdin/stdout are not a TTY.
+`negotia-data` volume the app reads, and refuses to run when stdin/stdout are not a TTY. It runs
+through the image entrypoint, so an unwritable volume fails with the same clear message as the app.
 
 ## Configuration
+
+Copy `.env.example` to `.env` and adjust it; Compose reads that file automatically. Never commit
+`.env`.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |

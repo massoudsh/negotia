@@ -78,6 +78,26 @@ test('compose keeps data in a named volume and exposes no privileged settings', 
   assert.ok(!/NEGOTIA_SEED_DEMO/.test(compose), 'demo seed must stay opt-in, not a compose default');
 });
 
+test('the account service keeps the image entrypoint so the volume check still runs', () => {
+  const account = compose.slice(compose.indexOf('  account:'));
+  assert.ok(!/^\s{4}entrypoint:/m.test(account), 'account must not bypass the writable-directory check');
+  assert.match(account, /^\s{4}command: \["node", "scripts\/create-user\.js"\]$/m);
+  assert.match(account, /stdin_open: true/);
+  assert.match(account, /tty: true/);
+});
+
+test('compose variables have a committed example file that is not ignored by git', () => {
+  assert.ok(exists('.env.example'));
+  const example = read('.env.example');
+  for (const name of ['NEGOTIA_PORT', 'NEGOTIA_ENVIRONMENT']) {
+    assert.ok(example.includes(name), `.env.example must document ${name}`);
+    assert.ok(compose.includes(name), `compose must consume ${name}`);
+  }
+  assert.ok(!/^\s*[A-Z_]+=.+[A-Za-z0-9]{20,}/m.test(example), '.env.example must not contain real secrets');
+  const gitignore = read('.gitignore');
+  assert.match(gitignore, /^!\.env\.example$/m);
+});
+
 test('deployment notes document the volume, account creation and TLS boundary', () => {
   assert.ok(exists('docs/deployment-docker.md'));
   const notes = read('docs/deployment-docker.md');

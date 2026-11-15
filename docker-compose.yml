@@ -21,7 +21,7 @@ services:
     image: negotia:local
     build:
       context: .
-    entrypoint: ["node", "scripts/create-user.js"]
+    command: ["node", "scripts/create-user.js"]
     stdin_open: true
     tty: true
     environment:
